@@ -329,7 +329,12 @@ const fetchStockBatch = async (tickers: string[]): Promise<Record<string, any>> 
     const cleanJson = text.replace(/```json|```/g, '').trim();
     const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+            return JSON.parse(jsonMatch[0]);
+        } catch (e) {
+            console.warn('Failed to parse stock batch JSON:', e);
+            return {};
+        }
     }
     return {};
   } catch (error) {
@@ -368,7 +373,12 @@ const fetchBenchmarkData = async (): Promise<any> => {
     const cleanJson = text.replace(/```json|```/g, '').trim();
     const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
     if (jsonMatch) {
-        return JSON.parse(jsonMatch[0]);
+        try {
+            return JSON.parse(jsonMatch[0]);
+        } catch (e) {
+            console.warn('Failed to parse benchmark JSON:', e);
+            return {};
+        }
     }
     return {};
   } catch (error) {
