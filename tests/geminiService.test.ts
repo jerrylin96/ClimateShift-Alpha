@@ -1,4 +1,3 @@
-
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { fetchMarketHeadlines } from '../services/geminiService';
 
@@ -37,13 +36,13 @@ describe('geminiService', () => {
       const mockChunks = [
         {
           web: {
-            uri: "http://test.com",
+            uri: "http://test.com/some/article",
             title: "Test News"
           }
         },
         {
           web: {
-            uri: "http://example.com",
+            uri: "http://example.com/another/story",
             title: "Another Story"
           }
         }
@@ -62,12 +61,12 @@ describe('geminiService', () => {
       
       expect(headlines).toHaveLength(2);
       expect(headlines[0].title).toBe("Test News");
-      expect(headlines[0].url).toBe("http://test.com");
-      expect(headlines[0].source).toBe("Test Source");
+      expect(headlines[0].url).toBe("http://test.com/some/article");
+      expect(headlines[0].source).toBe("Test"); // Extracted from domain
 
       expect(headlines[1].title).toBe("Another Story");
-      expect(headlines[1].url).toBe("http://example.com");
-      expect(headlines[1].source).toBe("Source Two");
+      expect(headlines[1].url).toBe("http://example.com/another/story");
+      expect(headlines[1].source).toBe("Example"); // Extracted from domain
       
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     });

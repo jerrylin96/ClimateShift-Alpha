@@ -95,53 +95,36 @@ export const fetchMarketHeadlines = async (query: string = "major global financi
       }
     });
     
-    const text = response.text || "";
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
     if (groundingChunks.length === 0) return [];
 
-    // Parse headlines from text response
-    const lines = text.split('\n').filter(line => line.trim().match(/^\d+\./));
-    
+    // Parse the grounding chunks directly - they contain both URL and title
+    // The numbered text list cannot be reliably correlated with chunks
     return groundingChunks
       .filter((chunk: any) => chunk.web?.uri)
-      .map((chunk: any, index: number) => {
-        // Extract headline from the numbered line
-        let title = "Financial News";
-        let textSource = null;
-
-        if (lines[index]) {
-          const match = lines[index].match(/^\d+\.\s*(.+?)(?:\s*-\s*(.+))?$/);
-          if (match) {
-            title = match[1].trim().replace(/^"|"$/g, ''); // Remove quotes if present
-            // Capture source from text if available (Group 2)
-            if (match[2]) {
-              textSource = match[2].trim();
-            }
-          } else {
-             // Fallback if regex doesn't match perfectly but line exists
-             title = lines[index].replace(/^\d+\.\s*/, '').trim();
-          }
-        } else if (chunk.web?.title && !chunk.web.title.includes('http')) {
-           // Fallback to web title if text lines run out, but only if it looks like a title
-           title = chunk.web.title;
+      .map((chunk: any) => {
+        const uri = chunk.web.uri;
+        let title = chunk.web?.title || "Financial News";
+        
+        // Clean up title if it looks like a URL or is too short
+        if (title.includes('http') || title.length < 5) {
+          title = "Financial News";
         }
         
-        // Use source from text if found, otherwise extract clean source from URL
-        let source = textSource || "News";
-        if (!textSource) {
-          try {
-            const hostname = new URL(chunk.web.uri).hostname;
-            const domain = hostname.replace(/^www\./, '').split('.')[0];
-            source = domain.charAt(0).toUpperCase() + domain.slice(1);
-          } catch (e) {
-            source = "News";
-          }
+        // Extract source from URL domain
+        let source = "News";
+        try {
+          const hostname = new URL(uri).hostname;
+          const domain = hostname.replace(/^www\./, '').split('.')[0];
+          source = domain.charAt(0).toUpperCase() + domain.slice(1);
+        } catch (e) {
+          source = "News";
         }
         
         return {
           title: title,
-          url: chunk.web.uri,
+          url: uri,
           source: source
         };
       })
