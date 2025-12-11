@@ -7,6 +7,37 @@ const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 /**
+ * Helper to robustly extract JSON from model response text.
+ * Handles markdown code blocks, raw JSON strings, and embedded JSON.
+ */
+const extractAndParseJSON = (text: string): any => {
+  if (!text) return null;
+  
+  try {
+    // 1. Try to find a JSON code block first (most reliable)
+    const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
+    if (codeBlockMatch) {
+      return JSON.parse(codeBlockMatch[1]);
+    }
+
+    // 2. Try to find the outermost JSON object
+    const startIndex = text.indexOf('{');
+    const endIndex = text.lastIndexOf('}');
+    
+    if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+      const jsonCandidate = text.substring(startIndex, endIndex + 1);
+      return JSON.parse(jsonCandidate);
+    }
+
+    // 3. Last resort: Try parsing the text directly
+    return JSON.parse(text);
+  } catch (error) {
+    console.warn("Failed to extract/parse JSON:", error);
+    return null;
+  }
+};
+
+/**
  * Validates and sanitizes user preferences input to prevent prompt injection.
  * Returns sanitized string or throws an error if invalid.
  */
@@ -310,21 +341,27 @@ export const refreshPortfolioPrices = async (
        - 5-Year Total Return Percentage - Search: "S&P 500 5 year return"
 
     OUTPUT FORMAT:
-    Return a single valid JSON object.
-    - Keys for stocks: Ticker Symbol (e.g., "AAPL")
-    - Key for S&P 500: "SPY_BENCHMARK"
-    - Value Format: 
-      { 
+    You MUST return the result as a single valid JSON object wrapped in a code block.
+    
+    \`\`\`json
+    {
+      "AAPL": { 
         "price": 123.45, 
         "dayChange": 1.2, 
         "oneYearChange": 10.5,
         "threeYearChange": 25.0,
         "fiveYearChange": 150.5 
+      },
+      "SPY_BENCHMARK": {
+        "oneYearChange": 12.0,
+        "threeYearChange": 30.0,
+        "fiveYearChange": 60.0
       }
+    }
+    \`\`\`
 
     CRITICAL Rules:
     - "Total Return" means the percentage gain/loss including dividends reinvested
-    - Return ONLY the JSON string. No markdown formatting.
     - If you cannot find data after trying all search patterns, OMIT the key. DO NOT GUESS.
     - "SPY_BENCHMARK" should only have return fields (no price or dayChange).
     - Be persistent: Try multiple search queries before giving up on a ticker.
@@ -341,10 +378,9 @@ export const refreshPortfolioPrices = async (
 
     const enrichmentText = enrichmentResponse.text;
     if (enrichmentText) {
-      try {
-        const cleanJson = enrichmentText.replace(/```json|```/g, '').trim();
-        const marketData = JSON.parse(cleanJson);
-        
+      const marketData = extractAndParseJSON(enrichmentText);
+      
+      if (marketData) {
         // ADD THIS DIAGNOSTIC LOGGING:
         console.log('📊 Market Data Retrieved:', marketData);
         console.log('📈 Data Coverage Summary:', {
@@ -381,8 +417,8 @@ export const refreshPortfolioPrices = async (
            if (typeof marketData.SPY_BENCHMARK.fiveYearChange === 'number') portfolio.metrics.benchmark5YearReturn = marketData.SPY_BENCHMARK.fiveYearChange;
         }
 
-      } catch (e) {
-        console.warn("Failed to parse market data enrichment JSON. Returning original portfolio.", e);
+      } else {
+        console.warn("Failed to parse market data enrichment JSON. Returning original portfolio. Raw Text:", enrichmentText);
       }
     }
     return portfolio;
@@ -415,8 +451,9 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
 
     Output Format:
     - First section: Text description with bold labels.
-    - Second section: A strict JSON block with the performance data (DO NOT use markdown code blocks for the JSON, just the string at the end).
-    JSON Example: 
+    - Second section: A strict JSON block containing the performance data.
+    
+    \`\`\`json
     { 
       "1W": 1.2, 
       "1M": -2.4, 
@@ -427,6 +464,7 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
       "peRatio": 30.5,
       "dividendYield": 0.5
     }
+    \`\`\`
   `;
 
   try {
@@ -441,14 +479,13 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
     const fullText = response.text || "";
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks as any[];
 
-    // Extract JSON from text
+    // Extract JSON from text using robust helper
     let performance = {};
     let marketCap, peRatio, dividendYield;
 
-    const jsonMatch = fullText.match(/\{[\s\S]*"1W"[\s\S]*\}/);
-    if (jsonMatch) {
-      try {
-        const parsed = JSON.parse(jsonMatch[0]);
+    const parsed = extractAndParseJSON(fullText);
+    
+    if (parsed) {
         performance = {
           oneWeek: parsed["1W"],
           oneMonth: parsed["1M"],
@@ -459,15 +496,13 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
         marketCap = parsed.marketCap;
         peRatio = parsed.peRatio;
         dividendYield = parsed.dividendYield;
-      } catch (e) {
-        console.warn("Failed to parse performance JSON", e);
-      }
     }
 
-    // Clean text by removing the JSON block if it looks messy
-    const content = fullText.replace(jsonMatch ? jsonMatch[0] : "", "").trim();
+    // Clean text by removing the JSON block if it looks messy (optional, but good for UI)
+    // We can just strip the code block if it exists
+    const content = fullText.replace(/```json[\s\S]*?```/g, "").replace(/\{[\s\S]*"1W"[\s\S]*\}/g, "").trim();
     
-    // Extract price from content
+    // Extract price from content as fallback or primary if not in JSON
     const priceMatch = content.match(/\$([\d,]+\.\d{2})/);
     const price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
 
