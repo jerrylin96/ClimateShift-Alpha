@@ -7,37 +7,6 @@ const apiKey = process.env.API_KEY || '';
 const ai = new GoogleGenAI({ apiKey });
 
 /**
- * Helper to robustly extract JSON from model response text.
- * Handles markdown code blocks, raw JSON strings, and embedded JSON.
- */
-const extractAndParseJSON = (text: string): any => {
-  if (!text) return null;
-  
-  try {
-    // 1. Try to find a JSON code block first (most reliable)
-    const codeBlockMatch = text.match(/```(?:json)?\s*(\{[\s\S]*?\})\s*```/i);
-    if (codeBlockMatch) {
-      return JSON.parse(codeBlockMatch[1]);
-    }
-
-    // 2. Try to find the outermost JSON object
-    const startIndex = text.indexOf('{');
-    const endIndex = text.lastIndexOf('}');
-    
-    if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
-      const jsonCandidate = text.substring(startIndex, endIndex + 1);
-      return JSON.parse(jsonCandidate);
-    }
-
-    // 3. Last resort: Try parsing the text directly
-    return JSON.parse(text);
-  } catch (error) {
-    console.warn("Failed to extract/parse JSON:", error);
-    return null;
-  }
-};
-
-/**
  * Validates and sanitizes user preferences input to prevent prompt injection.
  * Returns sanitized string or throws an error if invalid.
  */
@@ -292,6 +261,91 @@ export const generateETFPortfolio = async (
   }
 };
 
+const fetchStockBatch = async (tickers: string[]): Promise<Record<string, any>> => {
+  const model = "gemini-2.5-flash";
+  const tickerString = tickers.join(", ");
+  
+  const prompt = `
+    Find REAL-TIME stock data for these tickers: ${tickerString}
+
+    For EACH ticker, search and find:
+    1. Current stock price in USD
+    2. 5-year total return percentage
+    
+    Return ONLY a JSON code block with this exact format:
+    {
+      "AAPL": { "price": 185.50, "fiveYearChange": 280.5 },
+      "MSFT": { "price": 420.25, "fiveYearChange": 210.3 }
+    }
+
+    RULES:
+    - Search "{TICKER} stock price" and "{TICKER} 5 year return" for each
+    - If you cannot find data for a ticker, omit it entirely
+    - Do NOT guess values
+  `;
+
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+
+    const text = response.text || "";
+    // Robust JSON extraction
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+    }
+    return {};
+  } catch (error) {
+    console.warn(`Batch fetch failed for ${tickerString}`, error);
+    return {};
+  }
+};
+
+const fetchBenchmarkData = async (): Promise<any> => {
+  const model = "gemini-2.5-flash";
+  const prompt = `
+    Find the S&P 500 (SPY) total return percentages:
+
+    1-year total return
+    3-year total return
+    5-year total return
+    Return ONLY a JSON code block:
+
+    {
+      "oneYearChange": 12.5,
+      "threeYearChange": 35.2,
+      "fiveYearChange": 85.0
+    }
+  `;
+  
+  try {
+    const response = await ai.models.generateContent({
+      model,
+      contents: prompt,
+      config: {
+        tools: [{ googleSearch: {} }]
+      }
+    });
+
+    const text = response.text || "";
+    const cleanJson = text.replace(/```json|```/g, '').trim();
+    const jsonMatch = cleanJson.match(/\{[\s\S]*\}/);
+    if (jsonMatch) {
+        return JSON.parse(jsonMatch[0]);
+    }
+    return {};
+  } catch (error) {
+    console.warn("Benchmark fetch failed", error);
+    return {};
+  }
+};
+
 /**
  * Re-fetches current prices and historical returns (1Y, 3Y, 5Y) for all stocks in the portfolio.
  */
@@ -300,132 +354,88 @@ export const refreshPortfolioPrices = async (
   onProgress?: (status: string) => void
 ): Promise<GeneratedPortfolio> => {
   if (!apiKey) throw new Error("API Key is missing");
-  const model = "gemini-2.5-flash";
 
   if (onProgress) onProgress("Syncing with Global Exchanges...");
 
-  // Identify tickers that are missing critical data to prioritize them in prompt
-  const tickers = portfolio.positions.map(p => p.ticker).join(", ");
+  const allMarketData: Record<string, any> = {};
   
-  // Find broken tickers (missing price or 5Y data)
-  const missingDataTickers = portfolio.positions
-    .filter(p => p.currentPrice === undefined || p.fiveYearChangePercent === undefined)
-    .map(p => p.ticker);
-
-  if (missingDataTickers.length > 0 && onProgress) {
-    onProgress(`Repairing data for: ${missingDataTickers.join(", ")}...`);
+  // Step 1: Split tickers into batches of 4
+  const batchSize = 4;
+  const positions = portfolio.positions;
+  const tickerBatches: string[][] = [];
+  
+  for (let i = 0; i < positions.length; i += batchSize) {
+    tickerBatches.push(positions.slice(i, i + batchSize).map(p => p.ticker));
   }
-    
-  const enrichmentPrompt = `
-    I have a list of stock tickers: ${tickers}
-    
-    ${missingDataTickers.length > 0 ? `CRITICAL: The following tickers failed to return data previously: ${missingDataTickers.join(", ")}. Please try alternative search queries for them (e.g. "${missingDataTickers[0]} stock price today") to ensure we get data.` : ''}
-    
-    TASK:
-    Use Google Search to find the following REAL-TIME market data for each ticker.
-    Try these search patterns in order until you find data:
-      1. "{TICKER} 5 year return" (e.g. "AAPL 5 year return")
-      2. "{TICKER} stock performance 5 years"
-      3. "How much has {TICKER} stock returned in 5 years"
 
-    For EVERY ticker in the list, find:
-       - Current Share Price (USD) - Search: "{TICKER} stock price"
-       - Daily Percentage Change - Today's change
-       - 1-Year Total Return Percentage - Search: "{TICKER} 1 year return"
-       - 3-Year Total Return Percentage - Search: "{TICKER} 3 year return"  
-       - 5-Year Total Return Percentage - Search: "{TICKER} 5 year return"
-
-    For the S&P 500 (SPY or ^GSPC):
-       - 1-Year Total Return Percentage - Search: "S&P 500 1 year return"
-       - 3-Year Total Return Percentage - Search: "S&P 500 3 year return"
-       - 5-Year Total Return Percentage - Search: "S&P 500 5 year return"
-
-    OUTPUT FORMAT:
-    You MUST return the result as a single valid JSON object wrapped in a code block.
-    
-    \`\`\`json
-    {
-      "AAPL": { 
-        "price": 123.45, 
-        "dayChange": 1.2, 
-        "oneYearChange": 10.5,
-        "threeYearChange": 25.0,
-        "fiveYearChange": 150.5 
-      },
-      "SPY_BENCHMARK": {
-        "oneYearChange": 12.0,
-        "threeYearChange": 30.0,
-        "fiveYearChange": 60.0
-      }
-    }
-    \`\`\`
-
-    CRITICAL Rules:
-    - "Total Return" means the percentage gain/loss including dividends reinvested
-    - If you cannot find data after trying all search patterns, OMIT the key. DO NOT GUESS.
-    - "SPY_BENCHMARK" should only have return fields (no price or dayChange).
-    - Be persistent: Try multiple search queries before giving up on a ticker.
-  `;
-
-  try {
-    const enrichmentResponse = await ai.models.generateContent({
-      model,
-      contents: enrichmentPrompt,
-      config: {
-        tools: [{ googleSearch: {} }] 
-      }
-    });
-
-    const enrichmentText = enrichmentResponse.text;
-    if (enrichmentText) {
-      const marketData = extractAndParseJSON(enrichmentText);
-      
-      if (marketData) {
-        // ADD THIS DIAGNOSTIC LOGGING:
-        console.log('📊 Market Data Retrieved:', marketData);
-        console.log('📈 Data Coverage Summary:', {
-          totalTickers: portfolio.positions.length,
-          tickersWithPrice: Object.keys(marketData).filter(k => k !== 'SPY_BENCHMARK' && marketData[k]?.price).length,
-          tickersWithFiveYear: Object.keys(marketData).filter(k => k !== 'SPY_BENCHMARK' && marketData[k]?.fiveYearChange).length,
-          hasBenchmarkData: !!marketData.SPY_BENCHMARK?.fiveYearChange
-        });
-        
-        // Merge data into portfolio
-        portfolio.positions = portfolio.positions.map(pos => {
-          // Check for ticker or upper case ticker
-          const data = marketData[pos.ticker] || marketData[pos.ticker.toUpperCase()];
-          
-          if (data) {
-            // Only overwrite if new data is valid, OR if old data was undefined
-            // If new data is undefined/null, keep the old data if it existed
-            return {
-              ...pos,
-              currentPrice: typeof data.price === 'number' ? data.price : pos.currentPrice,
-              dayChangePercent: typeof data.dayChange === 'number' ? data.dayChange : pos.dayChangePercent,
-              oneYearChangePercent: typeof data.oneYearChange === 'number' ? data.oneYearChange : pos.oneYearChangePercent,
-              threeYearChangePercent: typeof data.threeYearChange === 'number' ? data.threeYearChange : pos.threeYearChangePercent,
-              fiveYearChangePercent: typeof data.fiveYearChange === 'number' ? data.fiveYearChange : pos.fiveYearChangePercent
-            };
-          }
-          return pos;
-        });
-
-        // Add benchmark data
-        if (marketData.SPY_BENCHMARK) {
-           if (typeof marketData.SPY_BENCHMARK.oneYearChange === 'number') portfolio.metrics.benchmark1YearReturn = marketData.SPY_BENCHMARK.oneYearChange;
-           if (typeof marketData.SPY_BENCHMARK.threeYearChange === 'number') portfolio.metrics.benchmark3YearReturn = marketData.SPY_BENCHMARK.threeYearChange;
-           if (typeof marketData.SPY_BENCHMARK.fiveYearChange === 'number') portfolio.metrics.benchmark5YearReturn = marketData.SPY_BENCHMARK.fiveYearChange;
-        }
-
-      } else {
-        console.warn("Failed to parse market data enrichment JSON. Returning original portfolio. Raw Text:", enrichmentText);
-      }
-    }
-    return portfolio;
-  } catch (error) {
-    console.warn("Enrichment failed:", error);
-    return portfolio; // Return original on failure
+  // Step 2: Fetch each batch sequentially
+  for (const batch of tickerBatches) {
+    if (onProgress) onProgress(`Fetching data for: ${batch.join(', ')}...`);
+    const batchData = await fetchStockBatch(batch);
+    Object.assign(allMarketData, batchData);
   }
+
+  // Step 3: Fetch benchmark separately
+  if (onProgress) onProgress('Fetching S&P 500 benchmark data...');
+  const benchmarkData = await fetchBenchmarkData();
+
+  // Step 4: Repair Pass - Retry tickers that failed to get critical 5Y data
+  const missingTickers = positions.filter(p => {
+    // Check main ticker or upper case version
+    const data = allMarketData[p.ticker] || allMarketData[p.ticker.toUpperCase()];
+    return !data || typeof data.fiveYearChange !== 'number';
+  }).map(p => p.ticker);
+
+  if (missingTickers.length > 0) {
+    if (onProgress) onProgress(`Repairing data for: ${missingTickers.length} tickers...`);
+    const retryBatches: string[][] = [];
+    for (let i = 0; i < missingTickers.length; i += batchSize) {
+      retryBatches.push(missingTickers.slice(i, i + batchSize));
+    }
+    
+    for (const batch of retryBatches) {
+      const retryData = await fetchStockBatch(batch);
+      Object.assign(allMarketData, retryData);
+    }
+  }
+
+  // Logging for debug
+  console.log('📊 Market Data Retrieved:', allMarketData);
+  console.log('📈 Data Coverage Summary:', {
+    totalTickers: portfolio.positions.length,
+    tickersWithPrice: Object.keys(allMarketData).filter(k => allMarketData[k]?.price).length,
+    tickersWithFiveYear: Object.keys(allMarketData).filter(k => allMarketData[k]?.fiveYearChange).length,
+    hasBenchmarkData: !!benchmarkData?.fiveYearChange
+  });
+
+  // Step 5: Merge data into portfolio
+  portfolio.positions = portfolio.positions.map(pos => {
+    // Check for ticker or upper case ticker
+    const data = allMarketData[pos.ticker] || allMarketData[pos.ticker.toUpperCase()];
+    
+    if (data) {
+      return {
+        ...pos,
+        currentPrice: typeof data.price === 'number' ? data.price : pos.currentPrice,
+        // Map 5Y change. Note: 1Y and 3Y are not fetched in this optimized routine to ensure 5Y success.
+        fiveYearChangePercent: typeof data.fiveYearChange === 'number' ? data.fiveYearChange : pos.fiveYearChangePercent,
+        // Retain other fields if present in previous state
+        dayChangePercent: pos.dayChangePercent,
+        oneYearChangePercent: pos.oneYearChangePercent,
+        threeYearChangePercent: pos.threeYearChangePercent,
+      };
+    }
+    return pos;
+  });
+
+  // Add benchmark data
+  if (benchmarkData) {
+      if (typeof benchmarkData.oneYearChange === 'number') portfolio.metrics.benchmark1YearReturn = benchmarkData.oneYearChange;
+      if (typeof benchmarkData.threeYearChange === 'number') portfolio.metrics.benchmark3YearReturn = benchmarkData.threeYearChange;
+      if (typeof benchmarkData.fiveYearChange === 'number') portfolio.metrics.benchmark5YearReturn = benchmarkData.fiveYearChange;
+  }
+
+  return portfolio;
 };
 
 export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult> => {
@@ -451,9 +461,8 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
 
     Output Format:
     - First section: Text description with bold labels.
-    - Second section: A strict JSON block containing the performance data.
-    
-    \`\`\`json
+    - Second section: A strict JSON block with the performance data (DO NOT use markdown code blocks for the JSON, just the string at the end).
+    JSON Example: 
     { 
       "1W": 1.2, 
       "1M": -2.4, 
@@ -464,7 +473,6 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
       "peRatio": 30.5,
       "dividendYield": 0.5
     }
-    \`\`\`
   `;
 
   try {
@@ -479,13 +487,14 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
     const fullText = response.text || "";
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks as any[];
 
-    // Extract JSON from text using robust helper
+    // Extract JSON from text
     let performance = {};
     let marketCap, peRatio, dividendYield;
 
-    const parsed = extractAndParseJSON(fullText);
-    
-    if (parsed) {
+    const jsonMatch = fullText.match(/\{[\s\S]*"1W"[\s\S]*\}/);
+    if (jsonMatch) {
+      try {
+        const parsed = JSON.parse(jsonMatch[0]);
         performance = {
           oneWeek: parsed["1W"],
           oneMonth: parsed["1M"],
@@ -496,13 +505,15 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
         marketCap = parsed.marketCap;
         peRatio = parsed.peRatio;
         dividendYield = parsed.dividendYield;
+      } catch (e) {
+        console.warn("Failed to parse performance JSON", e);
+      }
     }
 
-    // Clean text by removing the JSON block if it looks messy (optional, but good for UI)
-    // We can just strip the code block if it exists
-    const content = fullText.replace(/```json[\s\S]*?```/g, "").replace(/\{[\s\S]*"1W"[\s\S]*\}/g, "").trim();
+    // Clean text by removing the JSON block if it looks messy
+    const content = fullText.replace(jsonMatch ? jsonMatch[0] : "", "").trim();
     
-    // Extract price from content as fallback or primary if not in JSON
+    // Extract price from content
     const priceMatch = content.match(/\$([\d,]+\.\d{2})/);
     const price = priceMatch ? parseFloat(priceMatch[1].replace(/,/g, '')) : undefined;
 
