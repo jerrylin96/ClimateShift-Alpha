@@ -17,7 +17,7 @@ export const NewsTicker: React.FC<NewsTickerProps> = ({ headlines, onRefresh, is
   if (items.length === 0) {
     if (isLoading) {
       return (
-        <div className="bg-fin-card border border-fin-border rounded-lg overflow-hidden relative h-8 flex items-center shadow-lg animate-pulse">
+        <div className="bg-fin-card border border-fin-border rounded-lg overflow-hidden relative h-12 flex items-center shadow-lg animate-pulse">
           <div className="absolute left-0 top-0 bottom-0 z-20 px-3 bg-fin-card border-r border-fin-border flex items-center justify-center">
             <Globe className="w-4 h-4 text-fin-mute" />
           </div>
@@ -33,7 +33,7 @@ export const NewsTicker: React.FC<NewsTickerProps> = ({ headlines, onRefresh, is
   }
 
   return (
-    <div className="bg-fin-card border border-fin-border rounded-lg overflow-hidden relative h-8 flex items-center shadow-lg animate-fade-in group/ticker">
+    <div className="bg-fin-card border border-fin-border rounded-lg overflow-hidden relative h-12 flex items-center shadow-lg animate-fade-in group/ticker">
       {/* Refresh Button / Icon */}
       <button 
         onClick={onRefresh}
@@ -48,13 +48,13 @@ export const NewsTicker: React.FC<NewsTickerProps> = ({ headlines, onRefresh, is
       <div className="flex-1 overflow-hidden relative h-full ml-10">
          <div className="flex w-max animate-infinite-scroll hover:[animation-play-state:paused]">
             {/* First Copy */}
-            <div className="flex items-center gap-6 px-2">
+            <div className="flex items-center gap-8 px-4">
                {items.map((item, idx) => (
                  <NewsItem key={`1-${idx}-${item.url}`} item={item} />
                ))}
             </div>
             {/* Second Copy for Seamless Loop */}
-            <div className="flex items-center gap-6 px-2">
+            <div className="flex items-center gap-8 px-4">
                {items.map((item, idx) => (
                  <NewsItem key={`2-${idx}-${item.url}`} item={item} />
                ))}

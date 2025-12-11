@@ -133,47 +133,32 @@ export const fetchMarketHeadlines = async (query: string = "major global financi
         tools: [{ googleSearch: {} }]
       }
     });
-
-    const text = response.text || "";
-    const parsedHeadlines: {title: string, source: string}[] = [];
-    // Updated regex to handle leading whitespace/indentation
-    const regex = /^\s*\d+\.\s*(.+?)\s*-\s*(.+)$/gm;
-    let match;
-    while ((match = regex.exec(text)) !== null) {
-      parsedHeadlines.push({
-        title: match[1].trim().replace(/\*\*/g, ''), // Remove markdown bold if present
-        source: match[2].trim()
-      });
-    }
     
     const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
 
     if (groundingChunks.length === 0) return [];
 
-    // Map parsed headlines to grounding chunks
+    // Parse the grounding chunks directly - they contain both URL and title
+    // The numbered text list cannot be reliably correlated with chunks
     return groundingChunks
       .filter((chunk: any) => chunk.web?.uri)
-      .map((chunk: any, index: number) => {
+      .map((chunk: any) => {
         const uri = chunk.web.uri;
-        let title = "Financial News";
-        let source = "News";
+        let title = chunk.web?.title || "Financial News";
         
-        if (index < parsedHeadlines.length) {
-          title = parsedHeadlines[index].title;
-          source = parsedHeadlines[index].source;
-        } else {
-          // Fallback logic
-          title = chunk.web?.title || "Financial News";
-          if (title.includes('http') || title.length < 5) {
-            title = "Financial News";
-          }
-          try {
-            const hostname = new URL(uri).hostname;
-            const domain = hostname.replace(/^www\./, '').split('.')[0];
-            source = domain.charAt(0).toUpperCase() + domain.slice(1);
-          } catch (e) {
-            source = "News";
-          }
+        // Clean up title if it looks like a URL or is too short
+        if (title.includes('http') || title.length < 5) {
+          title = "Financial News";
+        }
+        
+        // Extract source from URL domain
+        let source = "News";
+        try {
+          const hostname = new URL(uri).hostname;
+          const domain = hostname.replace(/^www\./, '').split('.')[0];
+          source = domain.charAt(0).toUpperCase() + domain.slice(1);
+        } catch (e) {
+          source = "News";
         }
         
         return {
