@@ -22,6 +22,7 @@ const App: React.FC = () => {
   const [error, setError] = useState<string | null>(null);
   const [marketHeadlines, setMarketHeadlines] = useState<NewsHeadline[]>([]);
   const [isRefreshingNews, setIsRefreshingNews] = useState(false);
+  const [isLoadingHeadlines, setIsLoadingHeadlines] = useState(true);
 
   // Rebalance State
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
@@ -36,9 +37,15 @@ const App: React.FC = () => {
     let isMounted = true;
 
     const loadHeadlines = async () => {
-      const headlines = await fetchMarketHeadlines();
-      if (isMounted) {
-        setMarketHeadlines(headlines);
+      try {
+        const headlines = await fetchMarketHeadlines();
+        if (isMounted) {
+          setMarketHeadlines(headlines);
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoadingHeadlines(false);
+        }
       }
     };
     loadHeadlines();
@@ -199,6 +206,7 @@ const App: React.FC = () => {
               headlines={portfolio?.headlines || marketHeadlines} 
               onRefresh={handleRefreshNews}
               isRefreshing={isRefreshingNews}
+              isLoading={isLoadingHeadlines && !portfolio}
             />
 
             {/* 2. Main Result Area */}

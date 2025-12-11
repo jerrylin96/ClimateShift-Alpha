@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Globe, ExternalLink } from 'lucide-react';
 import { NewsHeadline } from '../types';
@@ -6,13 +7,30 @@ interface NewsTickerProps {
   headlines: NewsHeadline[];
   onRefresh?: () => void;
   isRefreshing?: boolean;
+  isLoading?: boolean;
 }
 
-export const NewsTicker: React.FC<NewsTickerProps> = ({ headlines, onRefresh, isRefreshing }) => {
+export const NewsTicker: React.FC<NewsTickerProps> = ({ headlines, onRefresh, isRefreshing, isLoading }) => {
   // Use headlines if available, but component structure renders even if empty to show the container
   const items = headlines || [];
   
-  if (items.length === 0) return null;
+  if (items.length === 0) {
+    if (isLoading) {
+      return (
+        <div className="bg-fin-card border border-fin-border rounded-lg overflow-hidden relative h-12 flex items-center shadow-lg animate-pulse">
+          <div className="absolute left-0 top-0 bottom-0 z-20 px-3 bg-fin-card border-r border-fin-border flex items-center justify-center">
+            <Globe className="w-4 h-4 text-fin-mute" />
+          </div>
+          <div className="flex-1 ml-10 px-4 flex items-center gap-4">
+            <div className="h-3 bg-fin-border rounded w-48"></div>
+            <div className="h-3 bg-fin-border rounded w-32"></div>
+            <div className="h-3 bg-fin-border rounded w-40"></div>
+          </div>
+        </div>
+      );
+    }
+    return null;
+  }
 
   return (
     <div className="bg-fin-card border border-fin-border rounded-lg overflow-hidden relative h-12 flex items-center shadow-lg animate-fade-in group/ticker">
