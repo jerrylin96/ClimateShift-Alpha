@@ -11,17 +11,17 @@ interface SimulationResultsProps {
 const MetricCard = ({ label, value, icon: Icon, subtext, colorClass, onClick }: any) => (
   <div 
     onClick={onClick}
-    className="bg-fin-bg rounded-lg border border-fin-border p-4 flex flex-col justify-between cursor-pointer hover:bg-fin-border/30 transition-all group relative overflow-hidden"
+    className="bg-fin-bg rounded-lg border border-fin-border p-5 flex flex-col justify-between cursor-pointer hover:bg-fin-border/30 transition-all group relative overflow-hidden min-h-[140px]"
   >
     <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
        <Info className="w-4 h-4 text-fin-mute" />
     </div>
-    <div className="flex justify-between items-start mb-2">
-      <span className="text-fin-mute text-xs uppercase font-semibold tracking-wider group-hover:text-white transition-colors">{label}</span>
-      <Icon className={`w-4 h-4 ${colorClass}`} />
+    <div className="flex justify-between items-start mb-3">
+      <span className="text-fin-mute text-sm uppercase font-semibold tracking-wider group-hover:text-white transition-colors">{label}</span>
+      <Icon className={`w-5 h-5 ${colorClass}`} />
     </div>
-    <div className="text-xl font-mono font-bold text-white mb-1 group-hover:scale-[1.02] origin-left transition-transform">{value}</div>
-    {subtext && <div className="text-xs text-fin-mute">{subtext}</div>}
+    <div className="text-3xl font-mono font-bold text-white mb-2 group-hover:scale-[1.02] origin-left transition-transform">{value}</div>
+    {subtext && <div className="text-xs text-fin-mute opacity-80">{subtext}</div>}
   </div>
 );
 
@@ -85,15 +85,15 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
 
   return (
     <>
-      <div className="bg-fin-card rounded-lg border border-fin-border p-6 shadow-lg">
-        <div className="flex items-center justify-between mb-6">
-          <h3 className="text-lg font-semibold text-white">Projected Performance</h3>
-          <span className="text-xs bg-fin-accent/10 text-fin-accent px-2 py-1 rounded border border-fin-accent/20">
+      <div className="bg-fin-card rounded-lg border border-fin-border p-8 shadow-lg h-full flex flex-col">
+        <div className="flex items-center justify-between mb-8">
+          <h3 className="text-xl font-semibold text-white">Projected Performance</h3>
+          <span className="text-sm bg-fin-accent/10 text-fin-accent px-3 py-1.5 rounded border border-fin-accent/20">
             Model: Gemini 2.5 Flash
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-8 flex-grow">
           <MetricCard
             label="Proj. Annual Return"
             value={metrics.projectedReturn}
@@ -128,19 +128,19 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
           />
         </div>
 
-        <div className="bg-fin-bg/50 border border-fin-border rounded-md p-4">
-          <div className="flex items-start gap-3">
-            <AlertCircle className="w-5 h-5 text-fin-mute mt-0.5 flex-shrink-0" />
+        <div className="bg-fin-bg/50 border border-fin-border rounded-md p-6 mb-auto">
+          <div className="flex items-start gap-4">
+            <AlertCircle className="w-6 h-6 text-fin-mute mt-0.5 flex-shrink-0" />
             <div>
-              <h4 className="text-sm font-semibold text-white mb-1">Fund Narrative</h4>
-              <p className="text-sm text-fin-mute leading-relaxed">
+              <h4 className="text-base font-semibold text-white mb-2">Fund Narrative</h4>
+              <p className="text-base text-fin-mute leading-relaxed">
                 {narrative}
               </p>
             </div>
           </div>
         </div>
         
-        <div className="mt-4 text-xs text-fin-mute text-center italic">
+        <div className="mt-6 text-xs text-fin-mute text-center italic pt-2 border-t border-fin-border/30">
           DISCLAIMER: This is a simulation for educational purposes only. Past performance does not guarantee future results.
           Not investment advice. Click any metric above to view the audit trail, calculation equations, and data sources.
         </div>
