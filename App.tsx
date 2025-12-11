@@ -33,9 +33,13 @@ const App: React.FC = () => {
 
   // Initial Data Fetch & Load LocalStorage
   useEffect(() => {
+    let isMounted = true;
+
     const loadHeadlines = async () => {
       const headlines = await fetchMarketHeadlines();
-      setMarketHeadlines(headlines);
+      if (isMounted) {
+        setMarketHeadlines(headlines);
+      }
     };
     loadHeadlines();
 
@@ -48,6 +52,10 @@ const App: React.FC = () => {
         console.error('Failed to load saved portfolio', e);
       }
     }
+
+    return () => {
+      isMounted = false;
+    };
   }, []);
 
   // Initial Construction
