@@ -1,10 +1,11 @@
-
 import { GeneratedPortfolio } from '../types';
 
 export interface BacktestDataPoint {
   dateObj: Date;
   dateLabel: string;
   year: number;
+  monthIndex: number;
+  decimalYear: number;
   sp500: number;
   fund: number;
 }
@@ -126,6 +127,8 @@ export const generateBacktestData = (
         dateObj: date,
         dateLabel: date.toLocaleDateString('en-US', { year: 'numeric', month: 'short' }),
         year: date.getFullYear(),
+        monthIndex: m,
+        decimalYear: date.getFullYear() + (date.getMonth() / 12),
         sp500: Math.round(bVal),
         fund: Math.round(pVal),
       });

@@ -1,4 +1,3 @@
-
 import React, { useMemo } from 'react';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { GeneratedPortfolio } from '../types';
@@ -69,15 +68,14 @@ export const PerformanceComparison: React.FC<PerformanceComparisonProps> = ({ po
             <LineChart data={data} margin={{ top: 10, right: 10, left: 10, bottom: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="#334155" vertical={false} />
               <XAxis 
-                dataKey="year" 
+                dataKey="decimalYear" 
                 stroke="#94a3b8" 
                 fontSize={12} 
                 tickMargin={10} 
-                // Only show ticks when year changes to avoid clutter
-                ticks={data.filter((d, i) => i === 0 || d.dateObj.getMonth() === 0).map(d => d.year)}
                 type="number"
                 domain={['dataMin', 'dataMax']}
-                tickFormatter={(tick) => tick.toString()}
+                ticks={data.filter((d) => d.dateObj.getMonth() === 0).map(d => d.decimalYear)}
+                tickFormatter={(tick) => Math.floor(tick).toString()}
               />
               <YAxis 
                 stroke="#94a3b8" 
