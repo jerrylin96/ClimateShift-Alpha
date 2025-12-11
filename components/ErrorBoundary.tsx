@@ -1,8 +1,8 @@
-import React, { ErrorInfo, ReactNode } from 'react';
+import React, { ErrorInfo } from 'react';
 import { AlertTriangle, RefreshCw } from 'lucide-react';
 
 interface Props {
-  children?: ReactNode;
+  children?: React.ReactNode;
 }
 
 interface State {
@@ -10,6 +10,7 @@ interface State {
   error?: Error;
 }
 
+// Fix: Extend Component explicitly to ensure setState and props are typed correctly
 export class ErrorBoundary extends React.Component<Props, State> {
   public state: State = {
     hasError: false

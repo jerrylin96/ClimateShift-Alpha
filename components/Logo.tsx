@@ -14,15 +14,44 @@ export const Logo: React.FC<LogoProps> = ({ className = "w-8 h-8" }) => {
       className={className}
       aria-label="ClimateShift Alpha Logo"
     >
-      {/* Main Lightning Bolt Body */}
+      {/* 
+        The "Alpha" (A)
+        Aggressive, dominant, geometric.
+        Sharp edges (butt/miter) for a "Manrope" industrial aesthetic.
+        Coordinates perfectly symmetrical around x=20.
+      */}
       <path 
-        d="M23 2L9 22H19L13 38L31 15H21L23 2Z" 
+        d="M9 36L20 12L31 36" 
         stroke="currentColor" 
-        strokeWidth="2.5" 
-        strokeLinecap="round" 
-        strokeLinejoin="round"
-        fill="currentColor"
-        fillOpacity="0.15"
+        strokeWidth="5" 
+        strokeLinecap="butt" 
+        strokeLinejoin="miter" 
+      />
+      
+      {/* Heavy Crossbar - Butt caps for precise geometric fit */}
+      <path 
+        d="M13.5 26H26.5" 
+        stroke="currentColor" 
+        strokeWidth="5" 
+        strokeLinecap="butt" 
+      />
+
+      {/* 
+        The "Barrier" Lines
+        Hard edges, perfectly symmetrical framing.
+        Parallel to the legs: (5,25)->(14,5) matches slope.
+      */}
+      <path 
+        d="M5 25L14 5" 
+        stroke="currentColor" 
+        strokeWidth="5" 
+        strokeLinecap="butt"
+      />
+      <path 
+        d="M35 25L26 5" 
+        stroke="currentColor" 
+        strokeWidth="5" 
+        strokeLinecap="butt"
       />
     </svg>
   );
