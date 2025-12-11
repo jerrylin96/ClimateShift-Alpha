@@ -136,7 +136,8 @@ export const fetchMarketHeadlines = async (query: string = "major global financi
 
     const text = response.text || "";
     const parsedHeadlines: {title: string, source: string}[] = [];
-    const regex = /^\d+\.\s*(.+?)\s*-\s*(.+)$/gm;
+    // Updated regex to handle leading whitespace/indentation
+    const regex = /^\s*\d+\.\s*(.+?)\s*-\s*(.+)$/gm;
     let match;
     while ((match = regex.exec(text)) !== null) {
       parsedHeadlines.push({

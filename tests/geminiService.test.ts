@@ -62,11 +62,11 @@ describe('geminiService', () => {
       expect(headlines).toHaveLength(2);
       expect(headlines[0].title).toBe("Test News");
       expect(headlines[0].url).toBe("http://test.com/some/article");
-      expect(headlines[0].source).toBe("Test"); // Extracted from domain
+      expect(headlines[0].source).toBe("Test Source"); // Parsed from text
 
       expect(headlines[1].title).toBe("Another Story");
       expect(headlines[1].url).toBe("http://example.com/another/story");
-      expect(headlines[1].source).toBe("Example"); // Extracted from domain
+      expect(headlines[1].source).toBe("Source Two"); // Parsed from text
       
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     });
