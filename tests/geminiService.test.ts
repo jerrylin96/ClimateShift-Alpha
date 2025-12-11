@@ -27,47 +27,91 @@ describe('geminiService', () => {
   });
 
   describe('fetchMarketHeadlines', () => {
-    it('returns parsed headlines when API returns valid JSON', async () => {
-      const mockResponseText = JSON.stringify({
-        headlines: [
-          { title: "Test News", source: "Test Source", url: "http://test.com" }
-        ]
-      });
+    it('returns parsed headlines when API returns valid data with grounding chunks', async () => {
+      // Logic expects numbered list in text + grounding chunks
+      const mockResponseText = `
+      1. Test News - Test Source
+      2. Another Story - Source Two
+      `;
+      
+      const mockChunks = [
+        {
+          web: {
+            uri: "http://test.com",
+            title: "Test News"
+          }
+        },
+        {
+          web: {
+            uri: "http://example.com",
+            title: "Another Story"
+          }
+        }
+      ];
 
       mockGenerateContent.mockResolvedValue({
-        text: mockResponseText
+        text: mockResponseText,
+        candidates: [{
+          groundingMetadata: {
+            groundingChunks: mockChunks
+          }
+        }]
       });
 
       const headlines = await fetchMarketHeadlines();
       
-      expect(headlines).toHaveLength(1);
+      expect(headlines).toHaveLength(2);
       expect(headlines[0].title).toBe("Test News");
+      expect(headlines[0].url).toBe("http://test.com");
+      expect(headlines[0].source).toBe("Test Source");
+
+      expect(headlines[1].title).toBe("Another Story");
+      expect(headlines[1].url).toBe("http://example.com");
+      expect(headlines[1].source).toBe("Source Two");
+      
       expect(mockGenerateContent).toHaveBeenCalledTimes(1);
     });
 
-    it('returns empty array when API returns invalid data', async () => {
+    it('returns empty array when API returns no grounding chunks', async () => {
       mockGenerateContent.mockResolvedValue({
-        text: "Invalid JSON"
+        text: "Some text",
+        candidates: [{
+          groundingMetadata: {
+            groundingChunks: []
+          }
+        }]
       });
 
       const headlines = await fetchMarketHeadlines();
       expect(headlines).toEqual([]);
     });
 
-    it('handles markdown code blocks in response', async () => {
-      const mockResponseText = "```json\n" + JSON.stringify({
-        headlines: [
-          { title: "Markdown News", source: "MD", url: "http://md.com" }
-        ]
-      }) + "\n```";
+    it('handles cases where text source is missing but domain can be extracted', async () => {
+      const mockResponseText = `
+      1. Market Up
+      `;
+      const mockChunks = [
+        {
+          web: {
+            uri: "http://www.bloomberg.com/news/123",
+            title: "Market Up"
+          }
+        }
+      ];
 
       mockGenerateContent.mockResolvedValue({
-        text: mockResponseText
+        text: mockResponseText,
+        candidates: [{
+          groundingMetadata: {
+            groundingChunks: mockChunks
+          }
+        }]
       });
 
       const headlines = await fetchMarketHeadlines();
       expect(headlines).toHaveLength(1);
-      expect(headlines[0].title).toBe("Markdown News");
+      expect(headlines[0].title).toBe("Market Up");
+      expect(headlines[0].source).toBe("Bloomberg"); // Extracted from URL
     });
   });
 });

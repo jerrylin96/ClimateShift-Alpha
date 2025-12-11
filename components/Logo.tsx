@@ -16,42 +16,35 @@ export const Logo: React.FC<LogoProps> = ({ className = "w-8 h-8" }) => {
     >
       {/* 
         The "Alpha" (A)
-        Aggressive, dominant, geometric.
-        Sharp edges (butt/miter) for a "Manrope" industrial aesthetic.
-        Coordinates perfectly symmetrical around x=20.
+        Geometry:
+        - Symmetrical construction centered at x=20
+        - Apex at y=5, Base at y=38
+        - Slope: ~0.36
       */}
       <path 
-        d="M9 36L20 12L31 36" 
-        stroke="currentColor" 
-        strokeWidth="5" 
-        strokeLinecap="butt" 
-        strokeLinejoin="miter" 
+        fillRule="evenodd" 
+        clipRule="evenodd" 
+        d="M20 5L32 38H28L24 26H16L12 38H8L20 5ZM20 16L22 22H18L20 16Z" 
+        fill="currentColor" 
       />
       
-      {/* Heavy Crossbar - Butt caps for precise geometric fit */}
-      <path 
-        d="M13.5 26H26.5" 
-        stroke="currentColor" 
-        strokeWidth="5" 
-        strokeLinecap="butt" 
-      />
-
       {/* 
-        The "Barrier" Lines
-        Hard edges, perfectly symmetrical framing.
-        Parallel to the legs: (5,25)->(14,5) matches slope.
+        The "Barrier" Wings (Shards)
+        Refinement:
+        - Top at y=2 (Fixed as requested)
+        - Bottom at y=24 (Raised from y=30 to make them shorter)
+        - Horizontal position adjusted closer to center (Gap ~4 units)
+        - Slope perfectly matched to A (-8/22 ~= -0.36)
       */}
       <path 
-        d="M5 25L14 5" 
-        stroke="currentColor" 
-        strokeWidth="5" 
-        strokeLinecap="butt"
+        d="M5 24L13 2H17L9 24H5Z" 
+        fill="currentColor" 
+        opacity="0.9"
       />
       <path 
-        d="M35 25L26 5" 
-        stroke="currentColor" 
-        strokeWidth="5" 
-        strokeLinecap="butt"
+        d="M35 24L27 2H23L31 24H35Z" 
+        fill="currentColor" 
+        opacity="0.9"
       />
     </svg>
   );
