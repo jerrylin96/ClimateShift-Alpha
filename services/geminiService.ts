@@ -48,10 +48,29 @@ export const fetchMarketHeadlines = async (query: string = "major global financi
   const prompt = `
     Find 10 of the most significant and latest financial news headlines relevant to: ${query}.
     
-    STRICT SOURCE FILTER:
-    Only use high-quality, reputable financial journalism.
-    Preferred: Bloomberg, Reuters, CNBC, Wall Street Journal (WSJ), Financial Times (FT), Barron's, MarketWatch, The Economist.
-    Do NOT use minor blogs, tabloids, or unknown aggregators.
+    STRICT SOURCE WHITELIST:
+    You MUST ONLY include news from the following reputable sources. Do NOT use any other sources.
+    - The Wall Street Journal (WSJ)
+    - Reuters
+    - Financial Times (FT)
+    - Bloomberg
+    - The Economist
+    - Barron's
+    - CNBC
+    - Forbes
+    - Fortune
+    - MarketWatch
+    - The New York Times (NYT)
+    - Bloomberg Businessweek
+    - Yahoo Finance
+    - CNN Business
+    - The Motley Fool
+    - Seeking Alpha
+    - TheStreet
+    - BBC Business
+    - Business Insider
+    - Vox
+    - The Washington Post
     
     CONTENT GUIDELINES:
     - Focus on noteworthy events for active investors (e.g., Fed/Central Bank policy, major M&A, earnings surprises, geopolitical shifts, macro economy).
