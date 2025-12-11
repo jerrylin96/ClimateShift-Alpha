@@ -20,11 +20,12 @@ export const Logo: React.FC<LogoProps> = ({ className = "w-8 h-8" }) => {
         - Symmetrical construction centered at x=20
         - Apex at y=5, Base at y=38
         - Slope: ~0.36
+        - Crossbar lowered (Hole: y=16-25, Bar gap: y=29) for visual tension
       */}
       <path 
         fillRule="evenodd" 
         clipRule="evenodd" 
-        d="M20 5L32 38H28L24 26H16L12 38H8L20 5ZM20 16L22 22H18L20 16Z" 
+        d="M20 5L32 38H28L25 29H15L12 38H8L20 5ZM20 16L23 25H17L20 16Z" 
         fill="currentColor" 
       />
       
