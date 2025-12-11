@@ -112,6 +112,7 @@ const App: React.FC = () => {
 
   const handleRefreshNews = async () => {
     setIsRefreshingNews(true);
+    setError(null);
     try {
       const freshHeadlines = await fetchMarketHeadlines();
       if (portfolio) {
@@ -123,6 +124,7 @@ const App: React.FC = () => {
       }
     } catch (e) {
       console.error("Failed to refresh news", e);
+      setError('Failed to refresh news. Please try again.');
     } finally {
       setIsRefreshingNews(false);
     }
