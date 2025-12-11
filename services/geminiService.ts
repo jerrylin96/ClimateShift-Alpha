@@ -41,16 +41,24 @@ export const validateUserPreferences = (input: string): string => {
   return sanitized;
 };
 
-export const fetchMarketHeadlines = async (query: string = "latest financial news global markets ESG investing"): Promise<NewsHeadline[]> => {
+export const fetchMarketHeadlines = async (query: string = "major global financial news and market movers"): Promise<NewsHeadline[]> => {
   if (!apiKey) return [];
   
   const model = "gemini-2.5-flash";
   const prompt = `
-    Find 10 latest, major financial news headlines relevant to: ${query}.
-    Use reputable sources like Bloomberg, Reuters, CNBC, WSJ, Financial Times, TechCrunch.
+    Find 10 of the most significant and latest financial news headlines relevant to: ${query}.
+    
+    STRICT SOURCE FILTER:
+    Only use high-quality, reputable financial journalism.
+    Preferred: Bloomberg, Reuters, CNBC, Wall Street Journal (WSJ), Financial Times (FT), Barron's, MarketWatch, The Economist.
+    Do NOT use minor blogs, tabloids, or unknown aggregators.
+    
+    CONTENT GUIDELINES:
+    - Focus on noteworthy events for active investors (e.g., Fed/Central Bank policy, major M&A, earnings surprises, geopolitical shifts, macro economy).
+    - The news does NOT need to be strictly about ESG or sustainability. General market news is preferred if it is more significant.
     
     For each article, provide:
-    1. The actual article headline (the full title of the news story)
+    1. The actual article headline (concise and professional)
     2. The publication source name
     
     Format your response as a numbered list:
