@@ -3,11 +3,34 @@ import { GeneratedPortfolio } from '../types';
 import { ArrowUpRight, Leaf, Activity, BarChart3, AlertCircle, Info } from 'lucide-react';
 import { MetricAuditModal } from './MetricAuditModal';
 
+interface MetricAuditSource {
+  name: string;
+  url?: string;
+}
+
+interface MetricAuditData {
+  label: string;
+  value: string;
+  description: string;
+  equation: string;
+  explanation: string;
+  sources: MetricAuditSource[];
+}
+
+interface MetricCardProps {
+  label: string;
+  value: string;
+  icon: React.FC<{ className?: string }>;
+  colorClass: string;
+  subtext?: string;
+  onClick: () => void;
+}
+
 interface SimulationResultsProps {
   portfolio: GeneratedPortfolio;
 }
 
-const MetricCard = ({ label, value, icon: Icon, subtext, colorClass, onClick }: any) => (
+const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, subtext, colorClass, onClick }) => (
   <div 
     onClick={onClick}
     className="bg-fin-bg rounded-lg border border-fin-border p-4 flex flex-col justify-between cursor-pointer hover:bg-fin-border/30 transition-all group relative overflow-hidden min-h-[110px]"
@@ -26,10 +49,10 @@ const MetricCard = ({ label, value, icon: Icon, subtext, colorClass, onClick }: 
 
 export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio }) => {
   const { metrics, narrative } = portfolio;
-  const [selectedMetric, setSelectedMetric] = useState<any | null>(null);
+  const [selectedMetric, setSelectedMetric] = useState<MetricAuditData | null>(null);
 
   // Define audit data for each metric with rigorous detail
-  const auditDataDefinitions: Record<string, any> = {
+  const auditDataDefinitions: Record<string, MetricAuditData> = {
     return: {
       label: "Projected Annual Return (Alpha)",
       value: metrics.projectedReturn,
