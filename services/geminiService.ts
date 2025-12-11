@@ -41,12 +41,51 @@ export const validateUserPreferences = (input: string): string => {
   return sanitized;
 };
 
+/**
+ * Validates and sanitizes the headlines query parameter.
+ * Returns sanitized string or the default query if invalid.
+ */
+const sanitizeHeadlinesQuery = (input: string): string => {
+  const defaultQuery = "major global financial news and market movers";
+  
+  // If empty or too short, use default
+  if (!input || input.trim().length < 3) {
+    return defaultQuery;
+  }
+  
+  // Enforce maximum length (200 characters for a search query)
+  if (input.length > 200) {
+    return defaultQuery;
+  }
+  
+  // Check for prompt injection patterns
+  const suspiciousPatterns = [
+    /ignore\s+(the\s+)?(previous|above|all|safety|instructions?|rules?|guidelines?)/gi,
+    /disregard\s+(the\s+)?(previous|above|all|safety|instructions?|rules?|guidelines?)/gi,
+    /override\s+(the\s+)?(previous|above|all|safety|instructions?|rules?|guidelines?)/gi,
+    /forget\s+(the\s+)?(previous|above|all|safety|instructions?|rules?|guidelines?)/gi,
+    /instead\s+(of|,)/gi,
+    /do\s+not\s+follow/gi,
+  ];
+  
+  for (const pattern of suspiciousPatterns) {
+    if (pattern.test(input)) {
+      return defaultQuery;
+    }
+  }
+  
+  // Sanitize: trim whitespace and collapse multiple spaces
+  return input.trim().replace(/\s+/g, ' ');
+};
+
 export const fetchMarketHeadlines = async (query: string = "major global financial news and market movers"): Promise<NewsHeadline[]> => {
   if (!apiKey) return [];
   
+  const sanitizedQuery = sanitizeHeadlinesQuery(query);
+  
   const model = "gemini-2.5-flash";
   const prompt = `
-    Find 10 of the most significant and latest financial news headlines relevant to: ${query}.
+    Find 10 of the most significant and latest financial news headlines relevant to: ${sanitizedQuery}.
     
     STRICT SOURCE WHITELIST:
     You MUST ONLY include news from the following reputable sources. Do NOT use any other sources.
