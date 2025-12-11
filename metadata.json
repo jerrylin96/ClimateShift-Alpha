@@ -1,5 +1,5 @@
 {
-  "name": "Copy of ClimateShift Alpha",
+  "name": "ClimateShift Alpha",
   "description": "A professional-grade quantitative finance tool that constructs and simulates custom ESG-focused ETF portfolios using the Gemini API. It prioritizes safety over speculation while excluding harmful industries.",
   "requestFramePermissions": []
 }
