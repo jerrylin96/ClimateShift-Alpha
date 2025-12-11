@@ -297,17 +297,21 @@ const fetchStockBatch = async (tickers: string[]): Promise<Record<string, any>> 
 
     For EACH ticker, search and find:
     1. Current stock price in USD
-    2. 5-year total return percentage
+    2. 1-year total return percentage
+    3. 3-year total return percentage
+    4. 5-year total return percentage
     
     Return ONLY a JSON code block with this exact format:
     {
-      "AAPL": { "price": 185.50, "fiveYearChange": 280.5 },
-      "MSFT": { "price": 420.25, "fiveYearChange": 210.3 }
+      "AAPL": { "price": 185.50, "oneYearChange": 25.5, "threeYearChange": 45.0, "fiveYearChange": 280.5 },
+      "MSFT": { "price": 420.25, "oneYearChange": 18.2, "threeYearChange": 52.0, "fiveYearChange": 210.3 }
     }
 
     RULES:
-    - Search "{TICKER} stock price" and "{TICKER} 5 year return" for each
-    - If you cannot find data for a ticker, omit it entirely
+    - Search "{TICKER} stock 1 year return", "{TICKER} stock 3 year return", "{TICKER} stock 5 year return"
+    - The 5-year return is MOST CRITICAL - prioritize finding this
+    - If you cannot find a specific return period, omit that field (but include others you found)
+    - If you cannot find ANY data for a ticker, omit the ticker entirely
     - Do NOT guess values
   `;
 
@@ -444,12 +448,10 @@ export const refreshPortfolioPrices = async (
       return {
         ...pos,
         currentPrice: typeof data.price === 'number' ? data.price : pos.currentPrice,
-        // Map 5Y change. Note: 1Y and 3Y are not fetched in this optimized routine to ensure 5Y success.
+        oneYearChangePercent: typeof data.oneYearChange === 'number' ? data.oneYearChange : pos.oneYearChangePercent,
+        threeYearChangePercent: typeof data.threeYearChange === 'number' ? data.threeYearChange : pos.threeYearChangePercent,
         fiveYearChangePercent: typeof data.fiveYearChange === 'number' ? data.fiveYearChange : pos.fiveYearChangePercent,
-        // Retain other fields if present in previous state
         dayChangePercent: pos.dayChangePercent,
-        oneYearChangePercent: pos.oneYearChangePercent,
-        threeYearChangePercent: pos.threeYearChangePercent,
       };
     }
     return pos;
