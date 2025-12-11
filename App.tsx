@@ -21,6 +21,7 @@ const App: React.FC = () => {
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [marketHeadlines, setMarketHeadlines] = useState<NewsHeadline[]>([]);
+  const [isRefreshingNews, setIsRefreshingNews] = useState(false);
 
   // Rebalance State
   const [isRebalanceModalOpen, setIsRebalanceModalOpen] = useState(false);
@@ -109,6 +110,24 @@ const App: React.FC = () => {
     }
   };
 
+  const handleRefreshNews = async () => {
+    setIsRefreshingNews(true);
+    try {
+      const freshHeadlines = await fetchMarketHeadlines();
+      if (portfolio) {
+        const updatedPortfolio = { ...portfolio, headlines: freshHeadlines };
+        setPortfolio(updatedPortfolio);
+        localStorage.setItem('climateshift-portfolio', JSON.stringify(updatedPortfolio));
+      } else {
+        setMarketHeadlines(freshHeadlines);
+      }
+    } catch (e) {
+      console.error("Failed to refresh news", e);
+    } finally {
+      setIsRefreshingNews(false);
+    }
+  };
+
   const handleClearPortfolio = () => {
     localStorage.removeItem('climateshift-portfolio');
     setPortfolio(null);
@@ -166,7 +185,11 @@ const App: React.FC = () => {
           <div className="lg:col-span-8 flex flex-col gap-6">
             
             {/* 1. News Ticker - Visually placed between Control Panel (Left) and Results (Below) in the grid flow */}
-            <NewsTicker headlines={portfolio?.headlines || marketHeadlines} />
+            <NewsTicker 
+              headlines={portfolio?.headlines || marketHeadlines} 
+              onRefresh={handleRefreshNews}
+              isRefreshing={isRefreshingNews}
+            />
 
             {/* 2. Main Result Area */}
             <div className="flex-grow">

@@ -32,6 +32,10 @@
                 '0%': { transform: 'translateX(100%)' },
                 '100%': { transform: 'translateX(-100%)' }
               },
+              'infinite-scroll': {
+                '0%': { transform: 'translateX(0)' },
+                '100%': { transform: 'translateX(-50%)' }
+              },
               'slide-up': {
                 '0%': { transform: 'translateY(100%)', opacity: '0' },
                 '100%': { transform: 'translateY(0)', opacity: '1' }
@@ -48,6 +52,7 @@
             animation: {
               shimmer: 'shimmer 2s infinite',
               marquee: 'marquee 296s linear infinite',
+              'infinite-scroll': 'infinite-scroll 120s linear infinite',
               'slide-up': 'slide-up 0.3s ease-out',
               'scale-up': 'scale-up 0.2s ease-out',
               'fade-in': 'fade-in 0.3s ease-out',
