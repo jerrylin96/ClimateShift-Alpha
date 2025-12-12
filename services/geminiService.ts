@@ -1,5 +1,5 @@
 import { GoogleGenAI, Type } from "@google/genai";
-import { GeneratedPortfolio, StockAnalysisResult, StockPosition, NewsHeadline } from "../types";
+import { GeneratedPortfolio, StockAnalysisResult, StockPosition, NewsHeadline, GroundingChunk } from "../types";
 
 const apiKey = process.env.API_KEY || '';
 
@@ -141,47 +141,65 @@ export const fetchMarketHeadlines = async (query: string = "major global financi
     while ((match = regex.exec(text)) !== null) {
       parsedHeadlines.push({
         title: match[1].trim().replace(/\*\*/g, ''), // Remove markdown bold if present
-        source: match[2].trim()
+        source: match[2].trim().replace(/\*\*/g, '')
       });
     }
     
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks || [];
+    const groundingChunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[];
 
-    if (groundingChunks.length === 0) return [];
+    // Extract valid URLs from chunks
+    const validUrls = groundingChunks
+      .filter(chunk => chunk.web?.uri)
+      .map(chunk => chunk.web!.uri);
 
-    // Map parsed headlines to grounding chunks
-    return groundingChunks
-      .filter((chunk: any) => chunk.web?.uri)
-      .map((chunk: any, index: number) => {
-        const uri = chunk.web.uri;
-        let title = "Financial News";
-        let source = "News";
+    // STRATEGY 1: Text-First (High Precision)
+    // We prioritize the model's generated text because it follows the strict whitelist instructions.
+    // We then attach URLs from grounding chunks sequentially.
+    if (parsedHeadlines.length > 0) {
+      return parsedHeadlines.map((headline, index) => {
+        // Attempt to find a URL. If we run out of grounding chunks, we construct a Google Search URL
+        // to ensure the headline is still clickable and useful.
+        const url = validUrls[index] || `https://www.google.com/search?q=${encodeURIComponent(headline.title + " " + headline.source)}`;
         
-        if (index < parsedHeadlines.length) {
-          title = parsedHeadlines[index].title;
-          source = parsedHeadlines[index].source;
-        } else {
-          // Fallback logic
-          title = chunk.web?.title || "Financial News";
-          if (title.includes('http') || title.length < 5) {
-            title = "Financial News";
+        return {
+          title: headline.title,
+          source: headline.source,
+          url: url
+        };
+      }).slice(0, 10);
+    }
+
+    // STRATEGY 2: Chunk-Fallback (Low Precision)
+    // Only used if regex parsing completely fails.
+    if (validUrls.length > 0) {
+      return groundingChunks
+        .filter(chunk => chunk.web?.uri)
+        .map(chunk => {
+          let title = chunk.web?.title || "Financial News";
+          // BUG FIX: Prevent internal tool names from leaking into UI
+          if (["Vertex AI Search", "Google Search", "Search Result"].includes(title)) {
+            title = "Market Update";
           }
+
+          let source = "News";
           try {
-            const hostname = new URL(uri).hostname;
+            const hostname = new URL(chunk.web!.uri).hostname;
             const domain = hostname.replace(/^www\./, '').split('.')[0];
             source = domain.charAt(0).toUpperCase() + domain.slice(1);
           } catch (e) {
             source = "News";
           }
-        }
-        
-        return {
-          title: title,
-          url: uri,
-          source: source
-        };
-      })
-      .slice(0, 10);
+          
+          return {
+            title: title,
+            url: chunk.web!.uri,
+            source: source
+          };
+        })
+        .slice(0, 10);
+    }
+
+    return [];
       
   } catch (error) {
     console.warn("Error fetching market headlines:", error);
@@ -559,7 +577,7 @@ export const analyzeStock = async (ticker: string): Promise<StockAnalysisResult>
     });
 
     const fullText = response.text || "";
-    const groundingChunks = response.candidates?.[0]?.groundingMetadata?.groundingChunks as any[];
+    const groundingChunks = (response.candidates?.[0]?.groundingMetadata?.groundingChunks || []) as GroundingChunk[];
 
     // Extract JSON from text
     let performance = {};

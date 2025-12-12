@@ -15,6 +15,7 @@ export interface StockPosition {
   oneYearChangePercent?: number;   // New anchor
   threeYearChangePercent?: number; // New anchor
   fiveYearChangePercent?: number;
+  dividendYieldPercent?: number;   // TTM dividend yield
 }
 
 export interface PortfolioMetrics {
@@ -25,6 +26,11 @@ export interface PortfolioMetrics {
   benchmark1YearReturn?: number; // Real fetched S&P 500 1Y return
   benchmark3YearReturn?: number; // Real fetched S&P 500 3Y return
   benchmark5YearReturn?: number; // Real fetched S&P 500 5Y return
+  isCalculated?: {
+    projectedReturn: boolean;
+    dividendYield: boolean;
+    sharpeRatio: boolean;
+  };
 }
 
 export interface NewsHeadline {

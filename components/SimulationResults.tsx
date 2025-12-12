@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GeneratedPortfolio } from '../types';
-import { ArrowUpRight, Activity, BarChart3, AlertCircle, Info } from 'lucide-react';
+import { ArrowUpRight, Activity, BarChart3, AlertCircle, Info, Calculator, Sparkles } from 'lucide-react';
 import { MetricAuditModal } from './MetricAuditModal';
 
 interface MetricAuditSource {
@@ -23,6 +23,7 @@ interface MetricCardProps {
   icon: React.FC<{ className?: string }>;
   colorClass: string;
   subtext?: string;
+  isCalculated?: boolean;
   onClick: () => void;
 }
 
@@ -30,7 +31,7 @@ interface SimulationResultsProps {
   portfolio: GeneratedPortfolio;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, subtext, colorClass, onClick }) => (
+const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, subtext, colorClass, isCalculated, onClick }) => (
   <div 
     onClick={onClick}
     className="bg-fin-bg rounded-lg border border-fin-border p-4 flex flex-col justify-between cursor-pointer hover:bg-fin-border/30 transition-all group relative overflow-hidden min-h-[110px]"
@@ -108,7 +109,8 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             value={metrics.projectedReturn}
             icon={ArrowUpRight}
             colorClass="text-fin-accent"
-            subtext="Targeting S&P 500 alpha"
+            subtext={metrics.isCalculated?.projectedReturn ? "Based on 1Y weighted returns" : "Targeting S&P 500 alpha"}
+            isCalculated={metrics.isCalculated?.projectedReturn}
             onClick={() => setSelectedMetric(auditDataDefinitions.return)}
           />
           <MetricCard
@@ -116,7 +118,8 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             value={metrics.sharpeRatio}
             icon={Activity}
             colorClass="text-blue-400"
-            subtext="Risk-adjusted return"
+            subtext={metrics.isCalculated?.sharpeRatio ? "Risk-adjusted return" : "Risk-adjusted return"}
+            isCalculated={metrics.isCalculated?.sharpeRatio}
             onClick={() => setSelectedMetric(auditDataDefinitions.sharpe)}
           />
           <MetricCard
@@ -124,7 +127,8 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             value={metrics.dividendYield}
             icon={BarChart3}
             colorClass="text-purple-400"
-            subtext="Income generation"
+            subtext={metrics.isCalculated?.dividendYield ? "Weighted avg TTM yield" : "Income generation"}
+            isCalculated={metrics.isCalculated?.dividendYield}
             onClick={() => setSelectedMetric(auditDataDefinitions.yield)}
           />
         </div>
