@@ -15,36 +15,31 @@ export const Logo: React.FC<LogoProps> = ({ className = "w-8 h-8" }) => {
       aria-label="ClimateShift Alpha Logo"
     >
       {/* 
-        The "Alpha" (A)
+        The "Alpha" (A) - Slightly Widened
         Geometry:
         - Symmetrical construction centered at x=20
-        - Apex at y=5, Base at y=38
-        - Slope: ~0.36
-        - Crossbar lowered (Hole: y=16-25, Bar gap: y=29) for visual tension
+        - Horizontal coordinates stretched by ~1.2x
       */}
       <path 
         fillRule="evenodd" 
         clipRule="evenodd" 
-        d="M20 5L32 38H28L25 29H15L12 38H8L20 5ZM20 16L23 25H17L20 16Z" 
+        d="M20 5L34.4 38H29.6L26 29H14L10.4 38H5.6L20 5ZM20 16L23.6 25H16.4L20 16Z" 
         fill="currentColor" 
       />
       
       {/* 
-        The "Barrier" Wings (Shards)
+        The "Barrier" Wings (Shards) - Slightly Widened
         Refinement:
-        - Top at y=2 (Fixed as requested)
-        - Bottom at y=24 (Raised from y=30 to make them shorter)
-        - Horizontal position adjusted closer to center (Gap ~4 units)
-        - Slope perfectly matched to A (-8/22 ~= -0.36)
+        - Coordinates stretched to match A
       */}
       <path 
-        d="M5 24L13 2H17L9 24H5Z" 
-        fill="currentColor" 
+        d="M2 24L11.6 2H16.4L6.8 24H2Z" 
+        fill="white" 
         opacity="0.9"
       />
       <path 
-        d="M35 24L27 2H23L31 24H35Z" 
-        fill="currentColor" 
+        d="M38 24L28.4 2H23.6L33.2 24H38Z" 
+        fill="white" 
         opacity="0.9"
       />
     </svg>
