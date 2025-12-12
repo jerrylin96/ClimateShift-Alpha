@@ -10,6 +10,129 @@ export interface BacktestDataPoint {
   fund: number;
 }
 
+// Constants for calculations
+const RISK_FREE_RATE = 4.25; // US 10-Year Treasury Yield (as percentage)
+const EXPENSE_RATIO = 0.10; // 10 basis points
+
+export interface CalculatedMetrics {
+  projectedReturn: string | null;
+  dividendYield: string | null;
+  sharpeRatio: string | null;
+  annualizedVolatility: number | null;
+}
+
+/**
+ * Calculates the weighted average dividend yield for the portfolio.
+ * Returns null if valid weight coverage is < 50%.
+ */
+export const calculateDividendYield = (portfolio: GeneratedPortfolio): number | null => {
+  let weightedSum = 0;
+  let validWeight = 0;
+
+  portfolio.positions.forEach(pos => {
+    if (typeof pos.dividendYieldPercent === 'number') {
+      weightedSum += (pos.weight / 100) * pos.dividendYieldPercent;
+      validWeight += pos.weight;
+    }
+  });
+
+  if (validWeight > 50) {
+    // Normalize to account for missing data
+    return (weightedSum / validWeight) * 100;
+  }
+  return null;
+};
+
+/**
+ * Calculates the projected annual return based on weighted 1-year historical returns.
+ * Uses 1Y return as a forward-looking proxy (with expense ratio deducted).
+ * Returns null if valid weight coverage is < 50%.
+ */
+export const calculateProjectedReturn = (portfolio: GeneratedPortfolio): number | null => {
+  const oneYearReturn = calculateWeightedReturn(portfolio, 'oneYearChangePercent');
+
+  if (oneYearReturn !== null) {
+    // Deduct expense ratio from gross return
+    return oneYearReturn - EXPENSE_RATIO;
+  }
+  return null;
+};
+
+/**
+ * Estimates portfolio volatility using the spread between annualized returns.
+ * This is a simplified estimation - true volatility requires daily return data.
+ * Uses the standard deviation of individual position returns as a proxy.
+ */
+export const estimateVolatility = (portfolio: GeneratedPortfolio): number | null => {
+  const returns: number[] = [];
+  let totalWeight = 0;
+
+  portfolio.positions.forEach(pos => {
+    if (typeof pos.oneYearChangePercent === 'number') {
+      returns.push(pos.oneYearChangePercent);
+      totalWeight += pos.weight;
+    }
+  });
+
+  if (returns.length < 3 || totalWeight < 50) {
+    return null; // Not enough data for meaningful volatility estimate
+  }
+
+  // Calculate mean
+  const mean = returns.reduce((a, b) => a + b, 0) / returns.length;
+
+  // Calculate standard deviation of returns as volatility proxy
+  const squaredDiffs = returns.map(r => Math.pow(r - mean, 2));
+  const variance = squaredDiffs.reduce((a, b) => a + b, 0) / returns.length;
+  const stdDev = Math.sqrt(variance);
+
+  // Apply diversification benefit (typically 0.6-0.8x for a diversified portfolio)
+  // This accounts for imperfect correlation between holdings
+  const diversificationFactor = 0.7;
+
+  return stdDev * diversificationFactor;
+};
+
+/**
+ * Calculates the Sharpe Ratio: (Expected Return - Risk Free Rate) / Volatility
+ * Returns null if we don't have enough data to estimate volatility.
+ */
+export const calculateSharpeRatio = (portfolio: GeneratedPortfolio): number | null => {
+  const projectedReturn = calculateProjectedReturn(portfolio);
+  const volatility = estimateVolatility(portfolio);
+
+  if (projectedReturn === null || volatility === null || volatility === 0) {
+    return null;
+  }
+
+  const excessReturn = projectedReturn - RISK_FREE_RATE;
+  return excessReturn / volatility;
+};
+
+/**
+ * Calculates all portfolio metrics from real data.
+ * Returns calculated values where possible, null otherwise.
+ */
+export const calculateAllMetrics = (portfolio: GeneratedPortfolio): CalculatedMetrics => {
+  const projectedReturnNum = calculateProjectedReturn(portfolio);
+  const dividendYieldNum = calculateDividendYield(portfolio);
+  const sharpeRatioNum = calculateSharpeRatio(portfolio);
+  const volatility = estimateVolatility(portfolio);
+
+  return {
+    projectedReturn: projectedReturnNum !== null
+      ? `${projectedReturnNum >= 0 ? '+' : ''}${projectedReturnNum.toFixed(1)}%`
+      : null,
+    dividendYield: dividendYieldNum !== null
+      ? `${dividendYieldNum.toFixed(2)}%`
+      : null,
+    sharpeRatio: sharpeRatioNum !== null
+      ? sharpeRatioNum.toFixed(2)
+      : null,
+    annualizedVolatility: volatility,
+  };
+};
+
 /**
  * Calculates the weighted average return for a specific timeframe (1Y, 3Y, 5Y).
  * Returns null if valid weight coverage is < 50%.

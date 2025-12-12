@@ -270,10 +270,9 @@ export const generateETFPortfolio = async (
                 projectedReturn: { type: Type.STRING, description: "e.g., '10-12%'" },
                 projectedVolatility: { type: Type.STRING, description: "e.g., 'Medium'" },
                 dividendYield: { type: Type.STRING, description: "e.g., '1.8%'" },
-                carbonFootprintReduction: { type: Type.STRING, description: "Comparison to S&P 500, e.g., '-40%'" },
                 sharpeRatio: { type: Type.STRING, description: "e.g., '1.2'" }
               },
-              required: ["projectedReturn", "projectedVolatility", "dividendYield", "carbonFootprintReduction", "sharpeRatio"]
+              required: ["projectedReturn", "projectedVolatility", "dividendYield", "sharpeRatio"]
             },
             positions: {
               type: Type.ARRAY,

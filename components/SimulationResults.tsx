@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GeneratedPortfolio } from '../types';
-import { ArrowUpRight, Leaf, Activity, BarChart3, AlertCircle, Info } from 'lucide-react';
+import { ArrowUpRight, Activity, BarChart3, AlertCircle, Info } from 'lucide-react';
 import { MetricAuditModal } from './MetricAuditModal';
 
 interface MetricAuditSource {
@@ -66,19 +66,6 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
         { name: "Morningstar ETF Expense Benchmarks", url: "https://www.morningstar.com/etfs" }
       ]
     },
-    carbon: {
-      label: "Carbon Intensity Reduction",
-      value: metrics.carbonFootprintReduction,
-      description: "vs. S&P 500 Benchmark",
-      equation: `Reduction_Score = 1 - ( WACI_portfolio / WACI_benchmark )\n\nWACI = Σ [ w_i × ( Carbon_Emissions_Scope1+2_i / Revenue_i ) ]\n\nParameters:\n  Unit: Tons CO2e / $1M Revenue\n  WACI_benchmark (SPY): ~95.4 tCO2e/$M (Est. 2024)\n  Scope: 1 (Direct) + 2 (Energy Indirect)`,
-      explanation: "We utilize the Weighted Average Carbon Intensity (WACI) metric recommended by the TCFD (Task Force on Climate-related Financial Disclosures). This measures the portfolio's exposure to carbon-intensive issuers. We strictly exclude Scope 3 data due to reporting inconsistencies. The reduction is calculated against the S&P 500 aggregate intensity.",
-      sources: [
-        { name: "TCFD Technical Supplement (Page 42)", url: "https://assets.bbhub.io/company/sites/60/2017/06/FIN0364-TCFD-Technical-Supplement-A4_FINAL_062817.pdf" },
-        { name: "CDP Climate Change Database", url: "https://www.cdp.net/en/data" },
-        { name: "GHG Protocol Corporate Standard", url: "https://ghgprotocol.org/corporate-standard" },
-        { name: "S&P Dow Jones Indices ESG Methodology", url: "https://www.spglobal.com/spdji/en/indices/esg/sp-500-esg-index/" }
-      ]
-    },
     sharpe: {
       label: "Sharpe Ratio (Ex-Ante)",
       value: metrics.sharpeRatio,
@@ -115,7 +102,7 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
           </span>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6 flex-grow">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6 flex-grow">
           <MetricCard
             label="Proj. Annual Return"
             value={metrics.projectedReturn}
@@ -123,14 +110,6 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             colorClass="text-fin-accent"
             subtext="Targeting S&P 500 alpha"
             onClick={() => setSelectedMetric(auditDataDefinitions.return)}
-          />
-          <MetricCard
-            label="Carbon Reduction"
-            value={metrics.carbonFootprintReduction}
-            icon={Leaf}
-            colorClass="text-green-400"
-            subtext="vs. broad market benchmark"
-            onClick={() => setSelectedMetric(auditDataDefinitions.carbon)}
           />
           <MetricCard
             label="Sharpe Ratio"

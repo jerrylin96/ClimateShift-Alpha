@@ -1,4 +1,5 @@
 
+
 import { describe, it, expect } from 'vitest';
 import { calculateWeightedReturn, generateBacktestData } from '../utils/calculations';
 import { GeneratedPortfolio, StockPosition } from '../types';
@@ -11,7 +12,6 @@ const mockPortfolio: GeneratedPortfolio = {
     projectedReturn: "10%",
     projectedVolatility: "Med",
     dividendYield: "1%",
-    carbonFootprintReduction: "10%",
     sharpeRatio: "1.0",
     benchmark1YearReturn: 10,
     benchmark3YearReturn: 30,

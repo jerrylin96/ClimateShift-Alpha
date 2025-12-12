@@ -1,4 +1,5 @@
 
+
 export interface StockPosition {
   ticker: string;
   name: string;
@@ -20,7 +21,6 @@ export interface PortfolioMetrics {
   projectedReturn: string;
   projectedVolatility: string;
   dividendYield: string;
-  carbonFootprintReduction: string;
   sharpeRatio: string;
   benchmark1YearReturn?: number; // Real fetched S&P 500 1Y return
   benchmark3YearReturn?: number; // Real fetched S&P 500 3Y return
