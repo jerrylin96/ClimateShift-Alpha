@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GeneratedPortfolio } from '../types';
-import { ArrowUpRight, Leaf, Activity, BarChart3, AlertCircle, Info } from 'lucide-react';
+import { ArrowUpRight, Leaf, Activity, BarChart3, AlertCircle, Info, Calculator, Sparkles } from 'lucide-react';
 import { MetricAuditModal } from './MetricAuditModal';
 
 interface MetricAuditSource {
@@ -23,6 +23,7 @@ interface MetricCardProps {
   icon: React.FC<{ className?: string }>;
   colorClass: string;
   subtext?: string;
+  isCalculated?: boolean;
   onClick: () => void;
 }
 
@@ -30,13 +31,28 @@ interface SimulationResultsProps {
   portfolio: GeneratedPortfolio;
 }
 
-const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, subtext, colorClass, onClick }) => (
-  <div 
+const MetricCard: React.FC<MetricCardProps> = ({ label, value, icon: Icon, subtext, colorClass, isCalculated, onClick }) => (
+  <div
     onClick={onClick}
     className="bg-fin-bg rounded-lg border border-fin-border p-4 flex flex-col justify-between cursor-pointer hover:bg-fin-border/30 transition-all group relative overflow-hidden min-h-[110px]"
   >
-    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-       <Info className="w-3 h-3 text-fin-mute" />
+    <div className="absolute top-2 right-2 flex items-center gap-1">
+      {isCalculated !== undefined && (
+        <span
+          className={`flex items-center gap-0.5 text-[9px] px-1.5 py-0.5 rounded-full ${
+            isCalculated
+              ? 'bg-green-500/20 text-green-400 border border-green-500/30'
+              : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
+          }`}
+          title={isCalculated ? 'Calculated from real market data' : 'AI estimate'}
+        >
+          {isCalculated ? <Calculator className="w-2.5 h-2.5" /> : <Sparkles className="w-2.5 h-2.5" />}
+          {isCalculated ? 'CALC' : 'EST'}
+        </span>
+      )}
+      <div className="opacity-0 group-hover:opacity-100 transition-opacity">
+        <Info className="w-3 h-3 text-fin-mute" />
+      </div>
     </div>
     <div className="flex justify-between items-start mb-2">
       <span className="text-fin-mute text-xs uppercase font-semibold tracking-wider group-hover:text-white transition-colors">{label}</span>
@@ -52,56 +68,82 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
   const [selectedMetric, setSelectedMetric] = useState<MetricAuditData | null>(null);
 
   // Define audit data for each metric with rigorous detail
+  const isCalc = metrics.isCalculated;
+
   const auditDataDefinitions: Record<string, MetricAuditData> = {
     return: {
-      label: "Projected Annual Return (Alpha)",
+      label: "Projected Annual Return",
       value: metrics.projectedReturn,
-      description: "Based on Analyst Consensus",
-      equation: `Net_Expected_Return = [ Σ (w_i × R_expected_i) ] - Expense_Ratio\n\nVariables:\n  w_i = Weight of holding i (See Portfolio Table)\n  R_expected_i = (Target_Price_Mean_12M / P_current) - 1\n  Expense_Ratio = 0.10% (Locked Cap)`,
-      explanation: "This calculation aggregates the 12-month forward return potential based on institutional analyst consensus price targets (FactSet/Refinitiv Mean). The model calculates the weighted average upside of every constituent stock relative to its real-time price, then subtracts the capped 10bps expense ratio. This assumes full realization of analyst targets.",
-      sources: [
-        { name: "Data: FactSet Consensus Estimates", url: "https://www.factset.com/data/consensus-estimates" },
-        { name: "Methodology: CAPM & Alpha Generation", url: "https://www.investopedia.com/terms/c/capm.asp" },
-        { name: "SEC EDGAR (10-K Filings for Fundamentals)", url: "https://www.sec.gov/edgar/search/" },
-        { name: "Morningstar ETF Expense Benchmarks", url: "https://www.morningstar.com/etfs" }
-      ]
+      description: isCalc?.projectedReturn ? "Calculated from Real Market Data" : "AI Estimate",
+      equation: isCalc?.projectedReturn
+        ? `Projected_Return = [ Σ (w_i × R_1Y_i) / Σ w_valid ] - Expense_Ratio\n\nVariables:\n  w_i = Weight of holding i\n  R_1Y_i = Actual 1-year return of holding i\n  w_valid = Sum of weights with valid data (must be >50%)\n  Expense_Ratio = 0.10%`
+        : `Net_Expected_Return = [ Σ (w_i × R_expected_i) ] - Expense_Ratio\n\nVariables:\n  w_i = Weight of holding i (See Portfolio Table)\n  R_expected_i = (Target_Price_Mean_12M / P_current) - 1\n  Expense_Ratio = 0.10% (Locked Cap)`,
+      explanation: isCalc?.projectedReturn
+        ? "This value is calculated by taking the weighted average of actual 1-year returns for each portfolio holding, then subtracting the 0.10% expense ratio. The calculation requires >50% of portfolio weight to have valid return data. Uses trailing 1-year performance as a forward-looking proxy."
+        : "This is an AI-generated estimate. The model estimates 12-month forward return potential based on general market conditions. For accurate calculations, ensure real-time data fetch completes successfully.",
+      sources: isCalc?.projectedReturn
+        ? [
+            { name: "Real-time data via Google Search (Gemini)" },
+            { name: "Methodology: Weighted Average Returns", url: "https://www.investopedia.com/terms/w/weightedaverage.asp" }
+          ]
+        : [
+            { name: "AI Estimate (Gemini 2.5 Flash)" },
+            { name: "Note: Real calculation requires successful data fetch" }
+          ]
     },
     carbon: {
       label: "Carbon Intensity Reduction",
       value: metrics.carbonFootprintReduction,
-      description: "vs. S&P 500 Benchmark",
+      description: "AI Estimate (ESG data not available)",
       equation: `Reduction_Score = 1 - ( WACI_portfolio / WACI_benchmark )\n\nWACI = Σ [ w_i × ( Carbon_Emissions_Scope1+2_i / Revenue_i ) ]\n\nParameters:\n  Unit: Tons CO2e / $1M Revenue\n  WACI_benchmark (SPY): ~95.4 tCO2e/$M (Est. 2024)\n  Scope: 1 (Direct) + 2 (Energy Indirect)`,
-      explanation: "We utilize the Weighted Average Carbon Intensity (WACI) metric recommended by the TCFD (Task Force on Climate-related Financial Disclosures). This measures the portfolio's exposure to carbon-intensive issuers. We strictly exclude Scope 3 data due to reporting inconsistencies. The reduction is calculated against the S&P 500 aggregate intensity.",
+      explanation: "⚠️ This value is an AI estimate. Accurate WACI calculation requires licensed ESG data from providers like MSCI, Sustainalytics, or CDP - which are not freely available via web search. The displayed value is based on the AI's assessment of the portfolio's climate-focused composition relative to the S&P 500.",
       sources: [
-        { name: "TCFD Technical Supplement (Page 42)", url: "https://assets.bbhub.io/company/sites/60/2017/06/FIN0364-TCFD-Technical-Supplement-A4_FINAL_062817.pdf" },
-        { name: "CDP Climate Change Database", url: "https://www.cdp.net/en/data" },
-        { name: "GHG Protocol Corporate Standard", url: "https://ghgprotocol.org/corporate-standard" },
-        { name: "S&P Dow Jones Indices ESG Methodology", url: "https://www.spglobal.com/spdji/en/indices/esg/sp-500-esg-index/" }
+        { name: "⚠️ AI Estimate - ESG data requires paid subscription" },
+        { name: "TCFD Technical Supplement", url: "https://assets.bbhub.io/company/sites/60/2017/06/FIN0364-TCFD-Technical-Supplement-A4_FINAL_062817.pdf" },
+        { name: "CDP Climate Change Database (Paid)", url: "https://www.cdp.net/en/data" },
+        { name: "MSCI ESG Ratings (Paid)", url: "https://www.msci.com/our-solutions/esg-investing" }
       ]
     },
     sharpe: {
-      label: "Sharpe Ratio (Ex-Ante)",
+      label: "Sharpe Ratio",
       value: metrics.sharpeRatio,
-      description: "Risk-Adjusted Efficiency",
-      equation: `Sharpe = ( E[R_portfolio] - R_risk_free ) / σ_portfolio\n\nVariables:\n  E[R_p] = Projected Annual Return (see above)\n  R_f = US 10-Year Treasury Yield (~4.25%)\n  σ_p = √ [ w' · Σ · w ] (Portfolio Volatility)\n  Σ = Covariance Matrix (60-month historical)`,
-      explanation: "The Sharpe Ratio measures the excess return per unit of deviation (risk). We use the current US 10-Year Treasury Yield as the risk-free rate proxy. The portfolio volatility (denominator) is derived from the covariance matrix of the 5-year historical returns of the selected assets, accounting for the diversification benefit between uncorrelated sectors.",
-      sources: [
-        { name: "US Dept of Treasury (Daily Yield Curve)", url: "https://home.treasury.gov/resource-center/data-chart-center/interest-rates/TextView?type=daily_treasury_yield_curve" },
-        { name: "Modern Portfolio Theory (Markowitz)", url: "https://www.investopedia.com/terms/m/modernportfoliotheory.asp" },
-        { name: "CBOE Volatility Index (VIX) Methodology", url: "https://www.cboe.com/tradable_products/vix/" }
-      ]
+      description: isCalc?.sharpeRatio ? "Calculated from Real Data" : "AI Estimate",
+      equation: isCalc?.sharpeRatio
+        ? `Sharpe = ( R_projected - R_f ) / σ_estimated\n\nVariables:\n  R_projected = Weighted 1Y return - 0.10% expense\n  R_f = 4.25% (US 10-Year Treasury proxy)\n  σ_estimated = StdDev(position returns) × 0.7\n  0.7 = Diversification factor`
+        : `Sharpe = ( E[R_portfolio] - R_risk_free ) / σ_portfolio\n\nVariables:\n  E[R_p] = Projected Annual Return (see above)\n  R_f = US 10-Year Treasury Yield (~4.25%)\n  σ_p = √ [ w' · Σ · w ] (Portfolio Volatility)\n  Σ = Covariance Matrix (60-month historical)`,
+      explanation: isCalc?.sharpeRatio
+        ? "Calculated using the projected return (weighted 1Y returns minus expense ratio), a 4.25% risk-free rate, and estimated volatility. Volatility is approximated using the standard deviation of individual position returns, multiplied by 0.7 to account for diversification benefits. This is a simplified estimation - true Sharpe calculation requires daily return data."
+        : "This is an AI-generated estimate. Accurate Sharpe ratio calculation requires historical daily returns to compute proper portfolio volatility, which is not available via web search.",
+      sources: isCalc?.sharpeRatio
+        ? [
+            { name: "Risk-free rate: US 10-Year Treasury (~4.25%)" },
+            { name: "Volatility: Simplified cross-sectional estimation" },
+            { name: "Methodology: Sharpe Ratio", url: "https://www.investopedia.com/terms/s/sharperatio.asp" }
+          ]
+        : [
+            { name: "AI Estimate (Gemini 2.5 Flash)" },
+            { name: "Note: Accurate calculation requires daily return data" }
+          ]
     },
     yield: {
       label: "Dividend Yield (TTM)",
       value: metrics.dividendYield,
-      description: "Income Component",
-      equation: `Portfolio_Yield = Σ [ w_i × ( Div_Annual_i / Price_i ) ]\n\nVariables:\n  Div_Annual_i = Trailing 12-Month Dividends per Share\n  Price_i = Real-time Market Price`,
-      explanation: "The weighted average of the trailing twelve-month (TTM) dividend yields of all constituent holdings. This represents the raw income generation potential of the fund, independent of capital appreciation. We use TTM actuals rather than forward projections to remain conservative.",
-      sources: [
-        { name: "Nasdaq Dividend History Database", url: "https://www.nasdaq.com/market-activity/stocks/screener?exchange=nasdaq&letter=0&render=download" },
-        { name: "SEC Filings (Dividend Declarations)", url: "https://www.sec.gov/edgar/search/" },
-        { name: "Company Investor Relations Portals" }
-      ]
+      description: isCalc?.dividendYield ? "Calculated from Real Data" : "AI Estimate",
+      equation: isCalc?.dividendYield
+        ? `Portfolio_Yield = [ Σ (w_i × Y_i) / Σ w_valid ] × 100\n\nVariables:\n  w_i = Weight of holding i\n  Y_i = TTM dividend yield of holding i\n  w_valid = Sum of weights with valid data (must be >50%)`
+        : `Portfolio_Yield = Σ [ w_i × ( Div_Annual_i / Price_i ) ]\n\nVariables:\n  Div_Annual_i = Trailing 12-Month Dividends per Share\n  Price_i = Real-time Market Price`,
+      explanation: isCalc?.dividendYield
+        ? "Calculated as the weighted average of trailing twelve-month (TTM) dividend yields for each portfolio holding. Requires >50% of portfolio weight to have valid yield data. Stocks that don't pay dividends are included with 0% yield."
+        : "This is an AI-generated estimate of the portfolio's dividend yield based on general knowledge of the constituent holdings.",
+      sources: isCalc?.dividendYield
+        ? [
+            { name: "Real-time data via Google Search (Gemini)" },
+            { name: "Methodology: Weighted Average", url: "https://www.investopedia.com/terms/w/weightedaverage.asp" }
+          ]
+        : [
+            { name: "AI Estimate (Gemini 2.5 Flash)" },
+            { name: "Note: Real calculation requires successful data fetch" }
+          ]
     }
   };
 
@@ -121,7 +163,8 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             value={metrics.projectedReturn}
             icon={ArrowUpRight}
             colorClass="text-fin-accent"
-            subtext="Targeting S&P 500 alpha"
+            subtext={metrics.isCalculated?.projectedReturn ? "Based on 1Y weighted returns" : "Targeting S&P 500 alpha"}
+            isCalculated={metrics.isCalculated?.projectedReturn}
             onClick={() => setSelectedMetric(auditDataDefinitions.return)}
           />
           <MetricCard
@@ -130,6 +173,7 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             icon={Leaf}
             colorClass="text-green-400"
             subtext="vs. broad market benchmark"
+            isCalculated={metrics.isCalculated?.carbonFootprintReduction}
             onClick={() => setSelectedMetric(auditDataDefinitions.carbon)}
           />
           <MetricCard
@@ -137,7 +181,8 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             value={metrics.sharpeRatio}
             icon={Activity}
             colorClass="text-blue-400"
-            subtext="Risk-adjusted return"
+            subtext={metrics.isCalculated?.sharpeRatio ? "Risk-adjusted return" : "Risk-adjusted return"}
+            isCalculated={metrics.isCalculated?.sharpeRatio}
             onClick={() => setSelectedMetric(auditDataDefinitions.sharpe)}
           />
           <MetricCard
@@ -145,7 +190,8 @@ export const SimulationResults: React.FC<SimulationResultsProps> = ({ portfolio 
             value={metrics.dividendYield}
             icon={BarChart3}
             colorClass="text-purple-400"
-            subtext="Income generation"
+            subtext={metrics.isCalculated?.dividendYield ? "Weighted avg TTM yield" : "Income generation"}
+            isCalculated={metrics.isCalculated?.dividendYield}
             onClick={() => setSelectedMetric(auditDataDefinitions.yield)}
           />
         </div>

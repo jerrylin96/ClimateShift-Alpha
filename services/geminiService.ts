@@ -1,5 +1,6 @@
 import { GoogleGenAI, Type } from "@google/genai";
 import { GeneratedPortfolio, StockAnalysisResult, StockPosition, NewsHeadline } from "../types";
+import { calculateAllMetrics } from "../utils/calculations";
 
 const apiKey = process.env.API_KEY || '';
 
@@ -327,7 +328,7 @@ export const generateETFPortfolio = async (
 const fetchStockBatch = async (tickers: string[]): Promise<Record<string, any>> => {
   const model = "gemini-2.5-flash";
   const tickerString = tickers.join(", ");
-  
+
   const prompt = `
     Find REAL-TIME stock data for these tickers: ${tickerString}
 
@@ -336,16 +337,18 @@ const fetchStockBatch = async (tickers: string[]): Promise<Record<string, any>> 
     2. 1-year total return percentage
     3. 3-year total return percentage
     4. 5-year total return percentage
-    
+    5. Current dividend yield percentage (annual dividend / price)
+
     Return ONLY a JSON code block with this exact format:
     {
-      "AAPL": { "price": 185.50, "oneYearChange": 25.5, "threeYearChange": 45.0, "fiveYearChange": 280.5 },
-      "MSFT": { "price": 420.25, "oneYearChange": 18.2, "threeYearChange": 52.0, "fiveYearChange": 210.3 }
+      "AAPL": { "price": 185.50, "oneYearChange": 25.5, "threeYearChange": 45.0, "fiveYearChange": 280.5, "dividendYield": 0.5 },
+      "MSFT": { "price": 420.25, "oneYearChange": 18.2, "threeYearChange": 52.0, "fiveYearChange": 210.3, "dividendYield": 0.8 }
     }
 
     RULES:
     - Search "{TICKER} stock 1 year return", "{TICKER} stock 3 year return", "{TICKER} stock 5 year return"
     - The 5-year return is MOST CRITICAL - prioritize finding this
+    - For dividend yield, use 0 if the stock does not pay dividends
     - If you cannot find a specific return period, omit that field (but include others you found)
     - If you cannot find ANY data for a ticker, omit the ticker entirely
     - Do NOT guess values
@@ -497,6 +500,7 @@ export const refreshPortfolioPrices = async (
         oneYearChangePercent: typeof data.oneYearChange === 'number' ? data.oneYearChange : pos.oneYearChangePercent,
         threeYearChangePercent: typeof data.threeYearChange === 'number' ? data.threeYearChange : pos.threeYearChangePercent,
         fiveYearChangePercent: typeof data.fiveYearChange === 'number' ? data.fiveYearChange : pos.fiveYearChangePercent,
+        dividendYieldPercent: typeof data.dividendYield === 'number' ? data.dividendYield : pos.dividendYieldPercent,
         dayChangePercent: pos.dayChangePercent,
       };
     }
@@ -509,6 +513,40 @@ export const refreshPortfolioPrices = async (
       if (typeof benchmarkData.threeYearChange === 'number') portfolio.metrics.benchmark3YearReturn = benchmarkData.threeYearChange;
       if (typeof benchmarkData.fiveYearChange === 'number') portfolio.metrics.benchmark5YearReturn = benchmarkData.fiveYearChange;
   }
+
+  // Step 6: Calculate metrics from real data where possible
+  if (onProgress) onProgress('Calculating portfolio metrics from real data...');
+  const calculatedMetrics = calculateAllMetrics(portfolio);
+
+  // Initialize isCalculated tracking object
+  portfolio.metrics.isCalculated = {
+    projectedReturn: false,
+    dividendYield: false,
+    sharpeRatio: false,
+    carbonFootprintReduction: false, // Always false - requires ESG data provider
+  };
+
+  // Override AI estimates with calculated values where available
+  if (calculatedMetrics.projectedReturn !== null) {
+    portfolio.metrics.projectedReturn = calculatedMetrics.projectedReturn;
+    portfolio.metrics.isCalculated.projectedReturn = true;
+  }
+  if (calculatedMetrics.dividendYield !== null) {
+    portfolio.metrics.dividendYield = calculatedMetrics.dividendYield;
+    portfolio.metrics.isCalculated.dividendYield = true;
+  }
+  if (calculatedMetrics.sharpeRatio !== null) {
+    portfolio.metrics.sharpeRatio = calculatedMetrics.sharpeRatio;
+    portfolio.metrics.isCalculated.sharpeRatio = true;
+  }
+
+  console.log('📐 Calculated Metrics:', {
+    projectedReturn: calculatedMetrics.projectedReturn,
+    dividendYield: calculatedMetrics.dividendYield,
+    sharpeRatio: calculatedMetrics.sharpeRatio,
+    volatility: calculatedMetrics.annualizedVolatility?.toFixed(2),
+    isCalculated: portfolio.metrics.isCalculated
+  });
 
   return portfolio;
 };

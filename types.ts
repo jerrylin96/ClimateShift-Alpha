@@ -7,13 +7,14 @@ export interface StockPosition {
   reason: string;
   esgScore: string; // "A", "AA", "AAA", etc.
   type: 'Core' | 'Growth' | 'Stabilizer'; // Core ESG, High Growth Green, or Neutral Stabilizer
-  
+
   // Real-time fetched data
   currentPrice?: number;
   dayChangePercent?: number;
   oneYearChangePercent?: number;   // New anchor
   threeYearChangePercent?: number; // New anchor
   fiveYearChangePercent?: number;
+  dividendYieldPercent?: number;   // TTM dividend yield
 }
 
 export interface PortfolioMetrics {
@@ -25,6 +26,13 @@ export interface PortfolioMetrics {
   benchmark1YearReturn?: number; // Real fetched S&P 500 1Y return
   benchmark3YearReturn?: number; // Real fetched S&P 500 3Y return
   benchmark5YearReturn?: number; // Real fetched S&P 500 5Y return
+  // Flags to indicate if metrics are calculated from real data
+  isCalculated?: {
+    projectedReturn: boolean;
+    dividendYield: boolean;
+    sharpeRatio: boolean;
+    carbonFootprintReduction: boolean;
+  };
 }
 
 export interface NewsHeadline {
